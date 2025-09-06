@@ -1,0 +1,143 @@
+/* 全局样式 */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    color: #333;
+}
+
+/* 导航栏样式 */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand {
+    font-weight: 600;
+}
+
+/* 卡片样式 */
+.card {
+    border-radius: 10px;
+    border: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.card-header {
+    font-weight: 600;
+    border-bottom: none;
+}
+
+/* 按钮样式 */
+.btn {
+    border-radius: 5px;
+    padding: 8px 16px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+    transform: translateY(-2px);
+}
+
+.btn-success {
+    background-color: #198754;
+    border-color: #198754;
+}
+
+.btn-success:hover {
+    background-color: #157347;
+    border-color: #146c43;
+    transform: translateY(-2px);
+}
+
+.btn-outline-primary:hover,
+.btn-outline-secondary:hover {
+    transform: translateY(-2px);
+}
+
+/* 表单样式 */
+.form-control {
+    border-radius: 5px;
+    padding: 10px 15px;
+    border: 1px solid #ced4da;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* 页脚样式 */
+.footer {
+    border-top: 1px solid #e9ecef;
+}
+
+/* 相机和预览容器样式 */
+.camera-container,
+.preview-container {
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.camera-container:hover,
+.preview-container:hover {
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+}
+
+/* 标签页样式 */
+.nav-tabs .nav-link {
+    color: #6c757d;
+    font-weight: 500;
+    padding: 10px 20px;
+    border: none;
+    border-bottom: 2px solid transparent;
+}
+
+.nav-tabs .nav-link.active {
+    color: #0d6efd;
+    background-color: transparent;
+    border-bottom: 2px solid #0d6efd;
+}
+
+.nav-tabs .nav-link:hover:not(.active) {
+    border-color: transparent;
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .camera-container,
+    .preview-container {
+        height: 180px;
+    }
+}
+
+/* 动画效果 */
+.fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* 用户头像样式 */
+.user-avatar {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.user-avatar:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}

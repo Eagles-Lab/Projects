@@ -1,0 +1,208 @@
+{% extends "layout.html" %}
+
+{% block title %}我的订单 - 校园闲置书籍共享平台{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h2>我的订单</h2>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-light">
+                <ul class="nav nav-tabs card-header-tabs" id="myTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab" aria-controls="all" aria-selected="true">全部订单</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab" aria-controls="pending" aria-selected="false">待交付</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed" type="button" role="tab" aria-controls="completed" aria-selected="false">已完成</button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content" id="myTabContent">
+                    <div class="tab-pane fade show active" id="all" role="tabpanel" aria-labelledby="all-tab">
+                        {% if orders %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>订单号</th>
+                                        <th>书籍名称</th>
+                                        <th>卖家</th>
+                                        <th>价格</th>
+                                        <th>订单状态</th>
+                                        <th>下单时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for order in orders %}
+                                    <tr>
+                                        <td>#{{ order.id }}</td>
+                                        <td>{{ order.book_title }}</td>
+                                        <td>{{ order.seller_name }}</td>
+                                        <td>¥{{ order.price }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ 'warning' if order.status == 'pending' else 'success' }}">
+                                                {{ '待交付' if order.status == 'pending' else '已完成' }}
+                                            </span>
+                                        </td>
+                                        <td>{{ order.created_at }}</td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#orderModal{{ order.id }}">
+                                                查看详情
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            您还没有购买任何书籍，<a href="{{ url_for('index') }}">去首页看看</a>。
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="tab-pane fade" id="pending" role="tabpanel" aria-labelledby="pending-tab">
+                        {% set pending_orders = orders|selectattr('status', 'equalto', 'pending')|list %}
+                        {% if pending_orders %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>订单号</th>
+                                        <th>书籍名称</th>
+                                        <th>卖家</th>
+                                        <th>价格</th>
+                                        <th>下单时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for order in pending_orders %}
+                                    <tr>
+                                        <td>#{{ order.id }}</td>
+                                        <td>{{ order.book_title }}</td>
+                                        <td>{{ order.seller_name }}</td>
+                                        <td>¥{{ order.price }}</td>
+                                        <td>{{ order.created_at }}</td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#orderModal{{ order.id }}">
+                                                查看详情
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            您没有待交付的订单。
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="tab-pane fade" id="completed" role="tabpanel" aria-labelledby="completed-tab">
+                        {% set completed_orders = orders|selectattr('status', 'equalto', 'completed')|list %}
+                        {% if completed_orders %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>订单号</th>
+                                        <th>书籍名称</th>
+                                        <th>卖家</th>
+                                        <th>价格</th>
+                                        <th>完成时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for order in completed_orders %}
+                                    <tr>
+                                        <td>#{{ order.id }}</td>
+                                        <td>{{ order.book_title }}</td>
+                                        <td>{{ order.seller_name }}</td>
+                                        <td>¥{{ order.price }}</td>
+                                        <td>{{ order.created_at }}</td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#orderModal{{ order.id }}">
+                                                查看详情
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            您没有已完成的订单。
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 订单详情模态框 -->
+{% for order in orders %}
+<div class="modal fade" id="orderModal{{ order.id }}" tabindex="-1" aria-labelledby="orderModalLabel{{ order.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="orderModalLabel{{ order.id }}">订单详情 #{{ order.id }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <h5>{{ order.book_title }}</h5>
+                        <p class="text-muted">订单状态: 
+                            <span class="badge bg-{{ 'warning' if order.status == 'pending' else 'success' }}">
+                                {{ '待交付' if order.status == 'pending' else '已完成' }}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p><strong>订单号:</strong> #{{ order.id }}</p>
+                        <p><strong>下单时间:</strong> {{ order.created_at }}</p>
+                        <p><strong>价格:</strong> ¥{{ order.price }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>卖家:</strong> {{ order.seller_name }}</p>
+                        <p><strong>收货地址:</strong> {{ order.address }}</p>
+                        <p><strong>联系电话:</strong> {{ order.phone }}</p>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info">
+                    <p class="mb-0"><strong>交易提示:</strong> 请与卖家联系，约定时间地点进行当面交易。确认书籍状态无误后再完成交易。</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                {% if order.status == 'pending' %}
+                <button type="button" class="btn btn-success">确认收货</button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

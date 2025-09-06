@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}控制面板 - 人脸识别登录系统{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h3 class="mb-0">欢迎回来，{{ username }}</h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle-fill"></i> 您已成功登录系统
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-md-4 text-center mb-4">
+                        <div class="user-avatar bg-light rounded-circle mx-auto d-flex align-items-center justify-content-center" style="width: 150px; height: 150px;">
+                            <i class="bi bi-person-fill" style="font-size: 5rem;"></i>
+                        </div>
+                        <h4 class="mt-3">{{ username }}</h4>
+                        <p class="text-muted">用户</p>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">账户信息</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3 row">
+                                    <label class="col-sm-4 col-form-label">用户名</label>
+                                    <div class="col-sm-8">
+                                        <p class="form-control-plaintext">{{ username }}</p>
+                                    </div>
+                                </div>
+                                <div class="mb-3 row">
+                                    <label class="col-sm-4 col-form-label">登录方式</label>
+                                    <div class="col-sm-8">
+                                        <p class="form-control-plaintext" id="login-method">-</p>
+                                    </div>
+                                </div>
+                                <div class="mb-3 row">
+                                    <label class="col-sm-4 col-form-label">登录时间</label>
+                                    <div class="col-sm-8">
+                                        <p class="form-control-plaintext" id="login-time">-</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h5 class="mb-0">系统功能</h5>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-group">
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        用户名密码登录
+                                        <span class="badge bg-success rounded-pill">已启用</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        人脸识别登录
+                                        <span class="badge bg-success rounded-pill">已启用</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        多因素认证
+                                        <span class="badge bg-secondary rounded-pill">未启用</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h5 class="mb-0">账户安全</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-outline-primary" disabled>
+                                        <i class="bi bi-camera-fill"></i> 更新人脸数据
+                                    </button>
+                                    <button class="btn btn-outline-primary" disabled>
+                                        <i class="bi bi-key-fill"></i> 修改密码
+                                    </button>
+                                    <a href="{{ url_for('logout') }}" class="btn btn-danger">
+                                        <i class="bi bi-box-arrow-right"></i> 退出登录
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 设置登录方式和时间（这里只是模拟，实际应从后端获取）
+        const loginMethods = ['用户名密码登录', '人脸识别登录'];
+        const randomMethod = loginMethods[Math.floor(Math.random() * loginMethods.length)];
+        document.getElementById('login-method').textContent = randomMethod;
+        
+        // 设置当前时间为登录时间
+        const now = new Date();
+        const formattedDate = now.toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+        document.getElementById('login-time').textContent = formattedDate;
+    });
+</script>
+{% endblock %}

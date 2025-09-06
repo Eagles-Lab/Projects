@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+
+{% block title %}注册 - 校园闲置书籍共享平台{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">用户注册</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('register') }}">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">用户名</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                        <div class="form-text">用户名将作为您在平台上的唯一标识</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">电子邮箱</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">密码</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirm_password" class="form-label">确认密码</label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">注册</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-center">
+                <p class="mb-0">已有账号？<a href="{{ url_for('login') }}">立即登录</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        const password = document.getElementById('password');
+        const confirmPassword = document.getElementById('confirm_password');
+
+        form.addEventListener('submit', function(event) {
+            if (password.value !== confirmPassword.value) {
+                event.preventDefault();
+                alert('两次输入的密码不一致');
+            }
+        });
+    });
+</script>
+{% endblock %}

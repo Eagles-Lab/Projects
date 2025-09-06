@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+
+{% block title %}注册 - 人脸识别登录系统{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">创建新账户</h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle-fill"></i> 请填写您的用户信息并拍摄人脸照片完成注册
+                </div>
+                
+                <div id="register-form">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">用户名</label>
+                        <input type="text" class="form-control" id="username" required>
+                        <div class="invalid-feedback">请输入用户名</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">密码</label>
+                        <input type="password" class="form-control" id="password" required>
+                        <div class="invalid-feedback">请输入密码</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="confirm-password" class="form-label">确认密码</label>
+                        <input type="password" class="form-control" id="confirm-password" required>
+                        <div class="invalid-feedback">两次输入的密码不一致</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">人脸照片</label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="camera-container border rounded p-2 mb-2">
+                                    <video id="video" class="w-100" autoplay></video>
+                                    <canvas id="canvas" style="display:none;"></canvas>
+                                </div>
+                                <button id="capture-btn" class="btn btn-primary w-100">
+                                    <i class="bi bi-camera-fill"></i> 拍摄照片
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="preview-container border rounded p-2 mb-2 d-flex align-items-center justify-content-center bg-light" style="height: 240px;">
+                                    <img id="photo-preview" class="img-fluid d-none" alt="人脸照片预览">
+                                    <div id="preview-placeholder" class="text-center text-muted">
+                                        <i class="bi bi-person-bounding-box fs-1"></i>
+                                        <p>照片预览区域</p>
+                                    </div>
+                                </div>
+                                <button id="retake-btn" class="btn btn-outline-secondary w-100 d-none">
+                                    <i class="bi bi-arrow-repeat"></i> 重新拍摄
+                                </button>
+                            </div>
+                        </div>
+                        <div class="invalid-feedback">请拍摄您的人脸照片</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button id="register-btn" class="btn btn-primary btn-lg">
+                            <i class="bi bi-person-plus-fill"></i> 注册账户
+                        </button>
+                        <a href="{{ url_for('login') }}" class="btn btn-outline-secondary">
+                            已有账户？立即登录
+                        </a>
+                    </div>
+                </div>
+                
+                <div id="register-success" class="text-center py-5 d-none">
+                    <div class="mb-4">
+                        <i class="bi bi-check-circle-fill text-success" style="font-size: 5rem;"></i>
+                    </div>
+                    <h3>注册成功！</h3>
+                    <p class="lead">您的账户已创建成功，现在可以登录系统了</p>
+                    <a href="{{ url_for('login') }}" class="btn btn-success btn-lg mt-3">
+                        <i class="bi bi-box-arrow-in-right"></i> 立即登录
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+<style>
+    .camera-container, .preview-container {
+        height: 240px;
+        overflow: hidden;
+    }
+    #video, #photo-preview {
+        max-height: 100%;
+        object-fit: cover;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const captureBtn = document.getElementById('capture-btn');
+        const retakeBtn = document.getElementById('retake-btn');
+        const photoPreview = document.getElementById('photo-preview');
+        const previewPlaceholder = document.getElementById('preview-placeholder');
+        const registerBtn = document.getElementById('register-btn');
+        const registerForm = document.getElementById('register-form');
+        const registerSuccess = document.getElementById('register-success');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirm-password');
+        
+        if (!video || !canvas || !captureBtn || !retakeBtn || !photoPreview || !previewPlaceholder || !registerBtn || !registerForm || !registerSuccess || !usernameInput || !passwordInput || !confirmPasswordInput) {
+            console.error('初始化失败: 某些元素未找到');
+            return;
+        }
+        let capturedImage = null;
+        let stream = null;
+        
+        // 启动摄像头
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+            } catch (err) {
+                console.error('摄像头访问失败:', err);
+                alert('无法访问摄像头，请确保您的设备有摄像头并已授予访问权限。');
+            }
+        }
+        
+        // 停止摄像头
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+        }
+        
+        // 拍摄照片
+        captureBtn.addEventListener('click', function() {
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            capturedImage = canvas.toDataURL('image/png');
+            photoPreview.src = capturedImage;
+            photoPreview.classList.remove('d-none');
+            previewPlaceholder.classList.add('d-none');
+            retakeBtn.classList.remove('d-none');
+            captureBtn.classList.add('d-none');
+            
+            // 暂停摄像头
+            video.pause();
+        });
+        
+        // 重新拍摄
+        retakeBtn.addEventListener('click', function() {
+            capturedImage = null;
+            photoPreview.classList.add('d-none');
+            previewPlaceholder.classList.remove('d-none');
+            retakeBtn.classList.add('d-none');
+            captureBtn.classList.remove('d-none');
+            
+            // 重新启动摄像头
+            video.play();
+        });
+        
+        // 注册表单提交
+        registerBtn.addEventListener('click', async function() {
+            // 表单验证
+            let isValid = true;
+            
+            if (!usernameInput.value.trim()) {
+                usernameInput.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                usernameInput.classList.remove('is-invalid');
+            }
+            
+            if (!passwordInput.value) {
+                passwordInput.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                passwordInput.classList.remove('is-invalid');
+            }
+            
+            if (passwordInput.value !== confirmPasswordInput.value) {
+                confirmPasswordInput.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                confirmPasswordInput.classList.remove('is-invalid');
+            }
+            
+            console.log(capturedImage);
+            
+            if (!capturedImage) {
+                document.querySelector('.camera-container').classList.add('border-danger');
+                document.querySelector('.camera-container + .invalid-feedback').style.display = 'block';
+                isValid = false;
+            } else {
+                document.querySelector('.camera-container').classList.remove('border-danger');
+                const feedbackElement = document.querySelector('.camera-container + .invalid-feedback');
+                if (feedbackElement) {
+                    feedbackElement.style.display = 'none';
+                } else {
+                    console.error('Feedback element not found');
+                }
+            }
+            
+            if (!isValid) return;
+            
+            // 准备注册数据
+            const registerData = {
+                username: usernameInput.value.trim(),
+                password: passwordInput.value,
+                face_image: capturedImage
+            };
+            
+            try {
+                // 发送注册请求
+                registerBtn.disabled = true;
+                registerBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 注册中...';
+                
+                const response = await fetch('{{ url_for("register") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(registerData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 注册成功
+                    registerForm.classList.add('d-none');
+                    registerSuccess.classList.remove('d-none');
+                    stopCamera();
+                } else {
+                    // 注册失败
+                    alert('注册失败: ' + result.message);
+                    registerBtn.disabled = false;
+                    registerBtn.innerHTML = '<i class="bi bi-person-plus-fill"></i> 注册账户';
+                }
+            } catch (error) {
+                console.error('注册请求错误:', error);
+                alert('注册请求发生错误，请稍后重试');
+                registerBtn.disabled = false;
+                registerBtn.innerHTML = '<i class="bi bi-person-plus-fill"></i> 注册账户';
+            }
+        });
+        
+        // 初始化摄像头
+        startCamera();
+    });
+</script>
+{% endblock %}

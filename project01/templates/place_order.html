@@ -1,0 +1,141 @@
+{% extends "layout.html" %}
+
+{% block title %}购买 {{ book.title }} - 校园闲置书籍共享平台{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('index') }}">首页</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('book_detail', book_id=book.id) }}">{{ book.title }}</a></li>
+                <li class="breadcrumb-item active">提交订单</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">填写订单信息</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('place_order', book_id=book.id) }}">
+                    <div class="mb-3">
+                        <label for="address" class="form-label">收货地址</label>
+                        <textarea class="form-control" id="address" name="address" rows="3" required></textarea>
+                        <div class="form-text">请填写详细的校内地址，如宿舍楼、宿舍号等</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">联系电话</label>
+                        <input type="tel" class="form-control" id="phone" name="phone" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">支付方式</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="payment" id="payment1" value="face" checked>
+                            <label class="form-check-label" for="payment1">
+                                当面交易
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="note" class="form-label">备注信息（可选）</label>
+                        <textarea class="form-control" id="note" name="note" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="agreement" required>
+                        <label class="form-check-label" for="agreement">
+                            我已阅读并同意<a href="#" data-bs-toggle="modal" data-bs-target="#termsModal">《交易条款》</a>
+                        </label>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">提交订单</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">订单摘要</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex mb-3">
+                    {% if book.image %}
+                    <img src="{{ book.image }}" class="img-thumbnail me-3" alt="{{ book.title }}" style="width: 80px; height: 80px; object-fit: cover;">
+                    {% else %}
+                    <div class="bg-light text-center me-3" style="width: 80px; height: 80px;">
+                        <span class="text-muted">无图片</span>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <h6>{{ book.title }}</h6>
+                        <p class="text-muted small mb-0">{{ book.author }}</p>
+                        <p class="text-muted small mb-0">状态: {{ book.condition }}</p>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="d-flex justify-content-between mb-2">
+                    <span>商品金额</span>
+                    <span>¥{{ book.price }}</span>
+                </div>
+                
+                <div class="d-flex justify-content-between mb-2">
+                    <span>卖家</span>
+                    <span>{{ book.seller_name }}</span>
+                </div>
+                
+                <hr>
+                
+                <div class="d-flex justify-content-between fw-bold">
+                    <span>订单总额</span>
+                    <span class="text-danger">¥{{ book.price }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 交易条款模态框 -->
+<div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="termsModalLabel">交易条款</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6>1. 交易规则</h6>
+                <p>本平台仅为校内学生提供闲置书籍信息发布与交流的平台，不参与实际交易过程。</p>
+                
+                <h6>2. 交易方式</h6>
+                <p>买卖双方通过平台约定时间地点进行当面交易，确认书籍状态后完成交易。</p>
+                
+                <h6>3. 用户责任</h6>
+                <p>卖家应如实描述书籍状态，买家应在收到书籍后及时确认。</p>
+                
+                <h6>4. 纠纷处理</h6>
+                <p>如发生交易纠纷，请及时联系平台管理员协调解决。</p>
+                
+                <h6>5. 隐私保护</h6>
+                <p>平台会保护用户个人信息，不会将信息用于非必要用途。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">我已阅读并同意</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

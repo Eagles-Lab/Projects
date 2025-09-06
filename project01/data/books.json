@@ -1,0 +1,54 @@
+[
+    {
+        "id": 1,
+        "title": "\u8ba1\u7b97\u673a\u7f51\u7edc\u6280\u672f",
+        "author": "eagleslab",
+        "description": "\u7f51\u7edc\u5165\u95e8\u4e66\u7c4d",
+        "price": 6.0,
+        "condition": "\u6b63\u5e38\u4f7f\u7528\u75d5\u8ff9",
+        "image": "/static/uploads/png",
+        "seller_id": 1,
+        "seller_name": "eagleslab",
+        "created_at": "2025-06-06 13:36:07",
+        "status": "available"
+    },
+    {
+        "id": 2,
+        "title": "test",
+        "author": "test",
+        "description": "test",
+        "price": 1.0,
+        "condition": "\u5168\u65b0",
+        "image": "/static/uploads/png",
+        "seller_id": 1,
+        "seller_name": "eagleslab",
+        "created_at": "2025-06-06 13:53:59",
+        "status": "available"
+    },
+    {
+        "id": 3,
+        "title": "test2",
+        "author": "test2",
+        "description": "test2",
+        "price": 1.0,
+        "condition": "\u5168\u65b0",
+        "image": "/static/uploads/png",
+        "seller_id": 1,
+        "seller_name": "eagleslab",
+        "created_at": "2025-06-06 13:55:53",
+        "status": "available"
+    },
+    {
+        "id": 4,
+        "title": "test3",
+        "author": "test3",
+        "description": "test3",
+        "price": 1.0,
+        "condition": "\u5168\u65b0",
+        "image": "/static/uploads/image_20250606135743.png",
+        "seller_id": 1,
+        "seller_name": "eagleslab",
+        "created_at": "2025-06-06 13:57:43",
+        "status": "available"
+    }
+]

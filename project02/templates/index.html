@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}首页 - 人脸识别登录系统{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-lg">
+            <div class="card-body text-center">
+                <h1 class="card-title mb-4">欢迎使用人脸识别登录系统</h1>
+                <p class="card-text lead">这是一个基于Flask的人脸识别登录系统，支持用户名密码和人脸识别两种登录方式。</p>
+                
+                <div class="features mt-5 mb-4">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="feature-item">
+                                <div class="feature-icon mb-3">
+                                    <i class="bi bi-person-plus-fill fs-1"></i>
+                                </div>
+                                <h4>用户注册</h4>
+                                <p>创建账户并上传您的人脸照片</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="feature-item">
+                                <div class="feature-icon mb-3">
+                                    <i class="bi bi-key-fill fs-1"></i>
+                                </div>
+                                <h4>密码登录</h4>
+                                <p>使用传统的用户名和密码登录</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="feature-item">
+                                <div class="feature-icon mb-3">
+                                    <i class="bi bi-camera-fill fs-1"></i>
+                                </div>
+                                <h4>人脸识别</h4>
+                                <p>通过人脸识别技术快速登录</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    {% if not session.username %}
+                    <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg me-2">立即注册</a>
+                    <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-lg">登录系统</a>
+                    {% else %}
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-success btn-lg">进入控制面板</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+<style>
+    .feature-item {
+        padding: 20px;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+    .feature-item:hover {
+        background-color: #f8f9fa;
+        transform: translateY(-5px);
+    }
+    .feature-icon {
+        color: #0d6efd;
+    }
+</style>
+{% endblock %}

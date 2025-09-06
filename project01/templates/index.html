@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+
+{% block title %}首页 - 校园闲置书籍共享平台{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="jumbotron bg-light p-5 rounded">
+            <h1 class="display-4">欢迎来到校园闲置书籍共享平台</h1>
+            <p class="lead">这里是大学生交换和购买二手教材、课外读物的理想场所</p>
+            <hr class="my-4">
+            <p>上传你的闲置书籍，或者寻找你需要的书籍，让知识继续流动</p>
+            {% if 'user_id' not in session %}
+            <a class="btn btn-primary btn-lg" href="{{ url_for('register') }}">立即注册</a>
+            <a class="btn btn-outline-primary btn-lg" href="{{ url_for('login') }}">登录账号</a>
+            {% else %}
+            <a class="btn btn-primary btn-lg" href="{{ url_for('upload_book') }}">上传书籍</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h2>最新上架</h2>
+        <hr>
+    </div>
+</div>
+
+<div class="row">
+    {% if books %}
+        {% for book in books %}
+            {% if book.status == 'available' %}
+            <div class="col-md-3 mb-4">
+                <div class="card h-100">
+                    {% if book.image %}
+                    <img src="{{ book.image }}" class="card-img-top" alt="{{ book.title }}" style="height: 200px; object-fit: cover;">
+                    {% else %}
+                    <div class="bg-light text-center py-5" style="height: 200px;">
+                        <span class="text-muted">无图片</span>
+                    </div>
+                    {% endif %}
+                    <div class="card-body">
+                        <h5 class="card-title">{{ book.title }}</h5>
+                        <p class="card-text text-muted">作者: {{ book.author }}</p>
+                        <p class="card-text"><strong>¥{{ book.price }}</strong></p>
+                        <p class="card-text"><small class="text-muted">卖家: {{ book.seller_name }}</small></p>
+                        <a href="{{ url_for('book_detail', book_id=book.id) }}" class="btn btn-primary">查看详情</a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+    {% else %}
+    <div class="col-md-12">
+        <div class="alert alert-info">
+            目前还没有书籍上架，成为第一个上传书籍的用户吧！
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

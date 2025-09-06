@@ -1,0 +1,9 @@
+# 人脸识别登录系统依赖包
+
+# 基础依赖
+flask==2.3.3
+werkzeug==2.3.7
+opencv-python==4.8.0.76
+numpy==1.25.2
+python-dotenv==1.0.0
+opencv-contrib-python==4.8.0.76

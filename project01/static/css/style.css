@@ -1,0 +1,168 @@
+/* 全局样式 */
+body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    color: #333;
+    background-color: #f8f9fa;
+}
+
+/* 导航栏样式 */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+/* 卡片样式 */
+.card {
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+    border: none;
+}
+
+.card-header {
+    border-radius: 8px 8px 0 0 !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.card-footer {
+    background-color: #fff;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* 按钮样式 */
+.btn-primary {
+    background-color: #4285f4;
+    border-color: #4285f4;
+}
+
+.btn-primary:hover {
+    background-color: #3367d6;
+    border-color: #3367d6;
+}
+
+.btn-outline-primary {
+    color: #4285f4;
+    border-color: #4285f4;
+}
+
+.btn-outline-primary:hover {
+    background-color: #4285f4;
+    border-color: #4285f4;
+}
+
+/* 首页样式 */
+.jumbotron {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* 书籍卡片样式 */
+.card-img-top {
+    border-radius: 8px 8px 0 0;
+    object-fit: cover;
+}
+
+/* 表单样式 */
+.form-control:focus {
+    border-color: #4285f4;
+    box-shadow: 0 0 0 0.2rem rgba(66, 133, 244, 0.25);
+}
+
+/* 表格样式 */
+.table th {
+    border-top: none;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+/* 页脚样式 */
+footer {
+    border-top: 1px solid #e9ecef;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .jumbotron h1 {
+        font-size: 2rem;
+    }
+    
+    .card-title {
+        font-size: 1.1rem;
+    }
+}
+
+/* 书籍详情页样式 */
+.book-image {
+    max-height: 400px;
+    object-fit: contain;
+}
+
+/* 订单详情样式 */
+.modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.modal-footer {
+    background-color: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+}
+
+/* 标签页样式 */
+.nav-tabs .nav-link {
+    color: #495057;
+}
+
+.nav-tabs .nav-link.active {
+    color: #4285f4;
+    border-color: #dee2e6 #dee2e6 #fff;
+}
+
+/* 警告框样式 */
+.alert {
+    border-radius: 8px;
+    border: none;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+/* 徽章样式 */
+.badge {
+    font-weight: 500;
+    padding: 0.4em 0.6em;
+}
+
+/* 动画效果 */
+.card, .btn, .form-control {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}

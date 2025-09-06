@@ -1,0 +1,90 @@
+{% extends "layout.html" %}
+
+{% block title %}上传书籍 - 校园闲置书籍共享平台{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">上传闲置书籍</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('upload_book') }}" enctype="multipart/form-data">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="title" class="form-label">书籍名称</label>
+                                <input type="text" class="form-control" id="title" name="title" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="author" class="form-label">作者</label>
+                                <input type="text" class="form-control" id="author" name="author" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">书籍描述</label>
+                        <textarea class="form-control" id="description" name="description" rows="4" required></textarea>
+                        <div class="form-text">请描述书籍的内容、用途、新旧程度等信息</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="price" class="form-label">价格（元）</label>
+                                <input type="number" step="0.01" min="0" class="form-control" id="price" name="price" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="condition" class="form-label">书籍状态</label>
+                                <select class="form-select" id="condition" name="condition" required>
+                                    <option value="">请选择...</option>
+                                    <option value="全新">全新</option>
+                                    <option value="几乎全新">几乎全新</option>
+                                    <option value="良好">良好</option>
+                                    <option value="正常使用痕迹">正常使用痕迹</option>
+                                    <option value="有明显使用痕迹">有明显使用痕迹</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="image" class="form-label">书籍图片</label>
+                        <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                        <div class="form-text">上传清晰的书籍照片可以提高出售几率</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">上传书籍</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 预览上传的图片
+    document.addEventListener('DOMContentLoaded', function() {
+        const imageInput = document.getElementById('image');
+        
+        imageInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const fileSize = this.files[0].size / 1024 / 1024; // in MB
+                if (fileSize > 5) {
+                    alert('图片大小不能超过5MB');
+                    this.value = '';
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,156 @@
+{% extends "layout.html" %}
+
+{% block title %}我的书籍 - 校园闲置书籍共享平台{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2>我的书籍</h2>
+    </div>
+    <div class="col-md-4 text-end">
+        <a href="{{ url_for('upload_book') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> 上传新书籍
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-light">
+                <ul class="nav nav-tabs card-header-tabs" id="myTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab" aria-controls="all" aria-selected="true">全部</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="available-tab" data-bs-toggle="tab" data-bs-target="#available" type="button" role="tab" aria-controls="available" aria-selected="false">在售</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="sold-tab" data-bs-toggle="tab" data-bs-target="#sold" type="button" role="tab" aria-controls="sold" aria-selected="false">已售出</button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content" id="myTabContent">
+                    <div class="tab-pane fade show active" id="all" role="tabpanel" aria-labelledby="all-tab">
+                        {% if books %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>书籍名称</th>
+                                        <th>作者</th>
+                                        <th>价格</th>
+                                        <th>状态</th>
+                                        <th>上传时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for book in books %}
+                                    <tr>
+                                        <td>{{ book.title }}</td>
+                                        <td>{{ book.author }}</td>
+                                        <td>¥{{ book.price }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ 'success' if book.status == 'available' else 'secondary' }}">
+                                                {{ '在售' if book.status == 'available' else '已售出' }}
+                                            </span>
+                                        </td>
+                                        <td>{{ book.created_at }}</td>
+                                        <td>
+                                            <a href="{{ url_for('book_detail', book_id=book.id) }}" class="btn btn-sm btn-outline-primary">查看</a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            您还没有上传任何书籍，<a href="{{ url_for('upload_book') }}">立即上传</a>。
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="tab-pane fade" id="available" role="tabpanel" aria-labelledby="available-tab">
+                        {% set available_books = books|selectattr('status', 'equalto', 'available')|list %}
+                        {% if available_books %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>书籍名称</th>
+                                        <th>作者</th>
+                                        <th>价格</th>
+                                        <th>上传时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for book in available_books %}
+                                    <tr>
+                                        <td>{{ book.title }}</td>
+                                        <td>{{ book.author }}</td>
+                                        <td>¥{{ book.price }}</td>
+                                        <td>{{ book.created_at }}</td>
+                                        <td>
+                                            <a href="{{ url_for('book_detail', book_id=book.id) }}" class="btn btn-sm btn-outline-primary">查看</a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            您没有在售的书籍。
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="tab-pane fade" id="sold" role="tabpanel" aria-labelledby="sold-tab">
+                        {% set sold_books = books|selectattr('status', 'equalto', 'sold')|list %}
+                        {% if sold_books %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>书籍名称</th>
+                                        <th>作者</th>
+                                        <th>价格</th>
+                                        <th>售出时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for book in sold_books %}
+                                    <tr>
+                                        <td>{{ book.title }}</td>
+                                        <td>{{ book.author }}</td>
+                                        <td>¥{{ book.price }}</td>
+                                        <td>{{ book.created_at }}</td>
+                                        <td>
+                                            <a href="{{ url_for('book_detail', book_id=book.id) }}" class="btn btn-sm btn-outline-primary">查看</a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            您没有已售出的书籍。
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+{% endblock %}
