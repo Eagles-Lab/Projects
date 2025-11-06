@@ -1,10 +1,10 @@
 # 实验环境分组
 
-每个Team资源池提供了5台机器： 1 k8s master 节点 + 3 k8s node 节点 + 1 init（刚装好Linux系统的一台虚拟机）
+每个Team资源池提供了5台机器： 1 k8s master 节点 + 2 k8s node 节点 + 1 init（刚装好Linux系统的一台虚拟机）
 
-vpn 客户端： http://117.90.218.109:8889/%E5%AE%9E%E7%94%A8%E5%B7%A5%E5%85%B7/anyconnect%E5%AE%A2%E6%88%B7%E7%AB%AF/windows/cisco-secure-client-win-5.0.02075-core-vpn-predeploy-k9.msi
+vpn 客户端： http://file.eagleslab.com:8889/%E5%AE%9E%E7%94%A8%E5%B7%A5%E5%85%B7/anyconnect%E5%AE%A2%E6%88%B7%E7%AB%AF/windows/cisco-secure-client-win-5.0.02075-core-vpn-predeploy-k9.msi
 
-vpn 连接地址：117.90.218.109:30443； ops + cloud + Y2xvdWQ=
+vpn 连接地址：X
 
 连接实验环境组：
     1. 打开 workstation , 文件 -> 连接服务器 
