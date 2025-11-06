@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: php
+  name: php
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: php
+  template:
+    metadata:
+      labels:
+        app: php
+    spec:
+      containers:
+      - name: myapp
+        image: myphp:7.4-fpm
+        ports:
+        - containerPort: 9000
+        volumeMounts:
+        - name: html
+          mountPath: /usr/share/nginx/html
+        - name: config
+          mountPath: /usr/local/etc
+      volumes:
+      - name: html
+        nfs:
+          server: 10.3.205.100
+          path: /root/data/nfs/html
+      - name: config
+        nfs:
+          server: 10.3.205.100
+          path: /root/data/nfs/php
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: phpfpm
+spec:
+  selector:
+    app: php
+  type: ClusterIP
+  ports:
+  - port: 9000
+    targetPort: 900
