@@ -1,0 +1,12 @@
+# master
+[mysqld]
+server-id=1
+log-bin=mysql-bin
+binlog_format=ROW
+sync_binlog=1
+
+# slave
+[mysqld]
+server-id=2
+relay_log=mysql-relay-bin
+read_only=1

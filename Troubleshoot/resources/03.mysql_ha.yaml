@@ -1,0 +1,134 @@
+# Master Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: mysql-master
+  name: mysql-master
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-master
+  template:
+    metadata:
+      labels:
+        app: mysql-master
+    spec:
+      containers:
+        - name: mysql-master
+          image: mariadb:10.3
+          env:
+            - name: MARIADB_ROOT_PASSWORD
+              value: "123456"
+            - name: MARIADB_REPLICATION_USER
+              value: "replicator"
+            - name: MARIADB_REPLICATION_PASSWORD
+              value: "replicator123"
+            - name: MARIADB_DATABASE
+              value: "app_db"
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: master-data
+              mountPath: /var/lib/mysql
+            - name: master-config
+              mountPath: /etc/mysql/
+            - name: master-log
+              mountPath: /var/log/mysql
+      volumes:
+        - name: master-data
+          nfs:
+            server: 10.3.202.100
+            path: /root/data/nfs/mysql-master/data
+        - name: master-config
+          nfs:
+            server: 10.3.202.100
+            path: /root/data/nfs/mysql-master/conf
+        - name: master-log
+          nfs:
+            server: 10.3.202.100
+            path: /root/data/nfs/mysql-master/log
+
+---
+# Slave Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: mysql-slave
+  name: mysql-slave
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-slave
+  template:
+    metadata:
+      labels:
+        app: mysql-slave
+    spec:
+      containers:
+        - name: mysql-slave
+          image: mariadb:10.3
+          env:
+            - name: MARIADB_ROOT_PASSWORD
+              value: "123456"
+            - name: MARIADB_MASTER_HOST
+              value: "mysql-master"
+            - name: MARIADB_REPLICATION_USER
+              value: "replicator"
+            - name: MARIADB_REPLICATION_PASSWORD
+              value: "replicator123"
+            - name: MARIADB_MASTER_PORT
+              value: "3306"
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: slave-data
+              mountPath: /var/lib/mysql
+            - name: slave-config
+              mountPath: /etc/mysql/
+            - name: slave-log
+              mountPath: /var/log/mysql
+      volumes:
+        - name: slave-data
+          nfs:
+            server: 10.3.202.100
+            path: /root/data/nfs/mysql-slave/data
+        - name: slave-config
+          nfs:
+            server: 10.3.202.100
+            path: /root/data/nfs/mysql-slave/conf
+        - name: slave-log
+          nfs:
+            server: 10.3.202.100
+            path: /root/data/nfs/mysql-slave/log
+
+---
+# Master Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-master
+spec:
+  selector:
+    app: mysql-master
+  type: ClusterIP
+  ports:
+    - port: 3306
+      targetPort: 3306
+
+---
+# Slave Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-slave
+spec:
+  selector:
+    app: mysql-slave
+  type: ClusterIP
+  ports:
+    - port: 3306
+      targetPort: 3306

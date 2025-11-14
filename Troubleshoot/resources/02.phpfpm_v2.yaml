@@ -19,11 +19,6 @@ spec:
         image: myphp:7.4-fpm
         ports:
         - containerPort: 9000
-        volumeMounts:
-        - name: html
-          mountPath: /usr/share/nginx/html
-        - name: config
-          mountPath: /usr/local/etc
         livenessProbe:
           tcpSocket:
             port: 9000
@@ -38,14 +33,19 @@ spec:
           periodSeconds: 10
           timeoutSeconds: 3
           failureThreshold: 2
+        volumeMounts:
+        - name: html
+          mountPath: /usr/share/nginx/html
+        - name: config
+          mountPath: /usr/local/etc
       volumes:
       - name: html
         nfs:
-          server: 10.3.202.100
+          server: 10.3.204.100
           path: /root/data/nfs/html
       - name: config
         nfs:
-          server: 10.3.202.100
+          server: 10.3.204.100
           path: /root/data/nfs/php
 
 ---
