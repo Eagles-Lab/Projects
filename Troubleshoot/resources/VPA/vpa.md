@@ -208,7 +208,7 @@ kubectl -n default get pods -l app=nginx -o wide
 先备份 Nginx Deployment 的原始配置，以便回滚：
 
 ```bash
-kubectl -n default get deployment nginx -o yaml /root/nginx-before-vpa.yaml
+kubectl -n default get deployment nginx -o yaml > /root/nginx-before-vpa.yaml
 ```
 
 为了让 VPA 调整前后的差异容易观察，把现有 Nginx 容器的初始 CPU request 设为 `10m`，CPU limit 设为 `32m`：
@@ -245,7 +245,7 @@ kubectl -n default get pods -l app=nginx -o custom-columns='NAME:.metadata.name,
 将负载发生器从 0 扩为 8 个副本。它会通过集群 DNS 持续访问 `nginx-service.default.svc.cluster.local`：
 
 ```bash
-kubectl -n vpa-lab scale deployment/load-generator --replicas=8
+kubectl -n vpa-lab scale deployment/load-generator --replicas=5
 
 kubectl -n vpa-lab rollout status deployment/load-generator \
   --timeout=180s
@@ -258,10 +258,10 @@ kubectl -n default top pods -l app=nginx --containers
 kubectl top nodes
 ```
 
-预期 Nginx Pod 的 CPU 使用量会明显高于 `10m` request。如果 CPU 仍然较低，可以逐步把负载发生器增加到 12 个副本：
+预期 Nginx Pod 的 CPU 使用量会明显高于 `10m` request。如果 CPU 仍然较低，可以逐步把负载发生器增加到 8 个副本：
 
 ```bash
-kubectl -n vpa-lab scale deployment/load-generator --replicas=12
+kubectl -n vpa-lab scale deployment/load-generator --replicas=8
 ```
 
 不要盲目继续增加。每次扩容后都执行 `kubectl top nodes`，避免把两个 Worker 的 CPU 全部压满。紧急停止压力：
