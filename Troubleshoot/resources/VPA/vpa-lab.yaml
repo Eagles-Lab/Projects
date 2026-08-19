@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vpa-lab
+---
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: nginx-vpa
+  # VPA 必须与目标 Deployment 位于同一命名空间。
+  namespace: default
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    # 直接使用集群中现有 LNMP 的 Nginx Deployment。
+    name: nginx
+  updatePolicy:
+    # 第一阶段只生成推荐值，不修改 Pod。
+    updateMode: "Off"
+    # Updater 只处理至少有两个副本的工作负载。
+    minReplicas: 2
+  resourcePolicy:
+    containerPolicies:
+      # 适用于 nginx Deployment 内的所有容器，避免猜测容器名称。
+      - containerName: "*"
+        minAllowed:
+          cpu: 25m
+        maxAllowed:
+          cpu: 500m
+        controlledResources:
+          - cpu
+        # 只调整 requests，保留固定的 CPU limit。
+        controlledValues: RequestsOnly
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: load-generator
+  namespace: vpa-lab
+spec:
+  # 第二阶段再扩为 4 个副本，开始制造 HTTP 压力。
+  replicas: 0
+  selector:
+    matchLabels:
+      app: load-generator
+  template:
+    metadata:
+      labels:
+        app: load-generator
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 1
+      containers:
+        - name: load-generator
+          image: m.daocloud.io/registry.k8s.io/busybox:1.36
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+          args:
+            # 通过集群 DNS 访问现有 LNMP 的 nginx-service。
+            - while sleep 0.01; do wget -q -O- http://nginx-service.default.svc.cluster.local/ >/dev/null; done
+          resources:
+            requests:
+              cpu: 10m
+              memory: 8Mi
+            limits:
+              cpu: 200m
+              memory: 64Mi
