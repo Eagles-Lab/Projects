@@ -1,0 +1,343 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: redis-replication-lab
+  labels:
+    app.kubernetes.io/part-of: redis-replication-lab
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-auth
+  namespace: redis-replication-lab
+type: Opaque
+stringData:
+  redis-password: "123456"
+
+---
+# StatefulSet 使用该 Headless Service 获得稳定 DNS。
+# Primary 的完整地址为：
+# redis-primary-0.redis-headless.redis-replication-lab.svc.cluster.local
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-headless
+  namespace: redis-replication-lab
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: redis-replication-lab
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: redis-replication-lab
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+      protocol: TCP
+
+---
+# 业务写入只访问该 Service；它固定选中 Primary Pod。
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-write
+  namespace: redis-replication-lab
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: redis-replication-lab
+spec:
+  type: ClusterIP
+  selector:
+    # StatefulSet 自动为 Pod 添加这个标签。
+    statefulset.kubernetes.io/pod-name: redis-primary-0
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+      protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-primary
+  namespace: redis-replication-lab
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: primary
+    app.kubernetes.io/part-of: redis-replication-lab
+spec:
+  serviceName: redis-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/component: primary
+      app.kubernetes.io/part-of: redis-replication-lab
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/component: primary
+        app.kubernetes.io/part-of: redis-replication-lab
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/part-of
+                      operator: In
+                      values:
+                        - redis-replication-lab
+      containers:
+        - name: redis
+          image: m.daocloud.io/docker.io/library/redis:7.2.5
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              exec redis-server \
+                --bind 0.0.0.0 \
+                --protected-mode yes \
+                --port 6379 \
+                --requirepass "$REDIS_PASSWORD" \
+                --masterauth "$REDIS_PASSWORD" \
+                --appendonly yes \
+                --appendfsync everysec \
+                --save 3600 1 \
+                --dir /data \
+                --dbfilename dump.rdb \
+                --replica-read-only yes
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-auth
+                  key: redis-password
+            - name: REDISCLI_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: redis-auth
+                  key: redis-password
+          ports:
+            - name: redis
+              containerPort: 6379
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - 'redis-cli -h 127.0.0.1 -p 6379 -a "$REDIS_PASSWORD" --no-auth-warning PING | grep -qx PONG'
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  ROLE=$(redis-cli --raw ROLE | sed -n '1p')
+                  test "$ROLE" = master ||
+                    redis-cli INFO replication | tr -d '\r' | grep -qx 'master_link_status:up'
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - 'redis-cli -h 127.0.0.1 -p 6379 -a "$REDIS_PASSWORD" --no-auth-warning PING | grep -qx PONG'
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: redis-local-static
+        resources:
+          requests:
+            storage: 1Gi
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-replica
+  namespace: redis-replication-lab
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: replica
+    app.kubernetes.io/part-of: redis-replication-lab
+spec:
+  serviceName: redis-headless
+  replicas: 2
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/component: replica
+      app.kubernetes.io/part-of: redis-replication-lab
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/component: replica
+        app.kubernetes.io/part-of: redis-replication-lab
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/part-of
+                      operator: In
+                      values:
+                        - redis-replication-lab
+      containers:
+        - name: redis
+          image: m.daocloud.io/docker.io/library/redis:7.2.5
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              exec redis-server \
+                --bind 0.0.0.0 \
+                --protected-mode yes \
+                --port 6379 \
+                --requirepass "$REDIS_PASSWORD" \
+                --masterauth "$REDIS_PASSWORD" \
+                --replicaof "$REDIS_PRIMARY_HOST" 6379 \
+                --replica-read-only yes \
+                --appendonly yes \
+                --appendfsync everysec \
+                --save 3600 1 \
+                --dir /data \
+                --dbfilename dump.rdb
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-auth
+                  key: redis-password
+            - name: REDISCLI_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: redis-auth
+                  key: redis-password
+            - name: REDIS_PRIMARY_HOST
+              value: redis-primary-0.redis-headless.redis-replication-lab.svc.cluster.local
+          ports:
+            - name: redis
+              containerPort: 6379
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - 'redis-cli -h 127.0.0.1 -p 6379 -a "$REDIS_PASSWORD" --no-auth-warning PING | grep -qx PONG'
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  ROLE=$(redis-cli --raw ROLE | sed -n '1p')
+                  test "$ROLE" = master ||
+                    redis-cli INFO replication | tr -d '\r' | grep -qx 'master_link_status:up'
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - 'redis-cli -h 127.0.0.1 -p 6379 -a "$REDIS_PASSWORD" --no-auth-warning PING | grep -qx PONG'
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: redis-local-static
+        resources:
+          requests:
+            storage: 1Gi

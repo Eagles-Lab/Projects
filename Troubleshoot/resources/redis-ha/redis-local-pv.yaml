@@ -1,0 +1,261 @@
+# 使用前必须先在对应节点创建下面各 PV 的 local.path 目录。
+# Local PV 只引用本机目录，不会自动创建目录。
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: redis-local-static
+provisioner: kubernetes.io/no-provisioner
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: redis-local-replication-primary-0
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: redis-local-static
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    namespace: redis-replication-lab
+    name: redis-data-redis-primary-0
+  local:
+    path: /data/redis-lab/replication/primary-0
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - node01
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: redis-local-replication-replica-0
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: redis-local-static
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    namespace: redis-replication-lab
+    name: redis-data-redis-replica-0
+  local:
+    path: /data/redis-lab/replication/replica-0
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - node02
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: redis-local-replication-replica-1
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: redis-local-static
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    namespace: redis-replication-lab
+    name: redis-data-redis-replica-1
+  local:
+    path: /data/redis-lab/replication/replica-1
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - node01
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: redis-local-cluster-0
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: redis-local-static
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    namespace: redis-cluster-lab
+    name: data-redis-cluster-0
+  local:
+    path: /data/redis-lab/cluster/node-0
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - node01
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: redis-local-cluster-1
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: redis-local-static
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    namespace: redis-cluster-lab
+    name: data-redis-cluster-1
+  local:
+    path: /data/redis-lab/cluster/node-1
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - node02
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: redis-local-cluster-2
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: redis-local-static
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    namespace: redis-cluster-lab
+    name: data-redis-cluster-2
+  local:
+    path: /data/redis-lab/cluster/node-2
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - node01
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: redis-local-cluster-3
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: redis-local-static
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    namespace: redis-cluster-lab
+    name: data-redis-cluster-3
+  local:
+    path: /data/redis-lab/cluster/node-3
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - node02
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: redis-local-cluster-4
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: redis-local-static
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    namespace: redis-cluster-lab
+    name: data-redis-cluster-4
+  local:
+    path: /data/redis-lab/cluster/node-4
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - node01
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: redis-local-cluster-5
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: redis-local-static
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    namespace: redis-cluster-lab
+    name: data-redis-cluster-5
+  local:
+    path: /data/redis-lab/cluster/node-5
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - node02
