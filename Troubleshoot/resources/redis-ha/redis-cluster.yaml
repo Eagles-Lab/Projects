@@ -1,0 +1,270 @@
+# Redis Cluster 课堂实验版：3 Master + 3 Replica。
+# 每个 Pod 通过 volumeClaimTemplates 使用一个独立 Local PV，保存 AOF、RDB 和 nodes.conf。
+# Local PV 绑定到指定 Worker，不能在 Worker 故障时跨节点迁移。
+# 本文件只启动 6 个 Redis Cluster 节点；Slot 分配和 3 Master + 3 Replica 关系需后续使用
+# redis-cli --cluster 初始化。
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: redis-cluster-lab
+  labels:
+    app.kubernetes.io/part-of: redis-cluster-lab
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-cluster-auth
+  namespace: redis-cluster-lab
+  labels:
+    app.kubernetes.io/name: redis-cluster
+    app.kubernetes.io/part-of: redis-cluster-lab
+type: Opaque
+stringData:
+  redis-password: "123456"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-cluster-config
+  namespace: redis-cluster-lab
+  labels:
+    app.kubernetes.io/name: redis-cluster
+    app.kubernetes.io/part-of: redis-cluster-lab
+data:
+  redis.conf: |-
+    bind 0.0.0.0
+    protected-mode no
+    port 6379
+    daemonize no
+    supervised no
+
+    dir /data
+    appendonly yes
+    appendfsync everysec
+    aof-use-rdb-preamble yes
+    save 3600 1
+
+    cluster-enabled yes
+    cluster-config-file /data/nodes.conf
+    cluster-node-timeout 5000
+    cluster-require-full-coverage yes
+
+    maxmemory 128mb
+    maxmemory-policy noeviction
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cluster-headless
+  namespace: redis-cluster-lab
+  labels:
+    app.kubernetes.io/name: redis-cluster
+    app.kubernetes.io/part-of: redis-cluster-lab
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/name: redis-cluster
+  ports:
+    - name: client
+      port: 6379
+      targetPort: client
+      protocol: TCP
+    - name: cluster-bus
+      port: 16379
+      targetPort: cluster-bus
+      protocol: TCP
+---
+# 该 Service 只是 Redis Cluster-aware 客户端的初始发现入口，不是数据代理。
+# 客户端仍须处理 MOVED/ASK 重定向，例如使用 redis-cli -c。
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cluster-entry
+  namespace: redis-cluster-lab
+  labels:
+    app.kubernetes.io/name: redis-cluster
+    app.kubernetes.io/part-of: redis-cluster-lab
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: redis-cluster
+  ports:
+    - name: client
+      port: 6379
+      targetPort: client
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-cluster
+  namespace: redis-cluster-lab
+  labels:
+    app.kubernetes.io/name: redis-cluster
+    app.kubernetes.io/part-of: redis-cluster-lab
+spec:
+  serviceName: redis-cluster-headless
+  replicas: 6
+  podManagementPolicy: Parallel
+  minReadySeconds: 3
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis-cluster
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis-cluster
+        app.kubernetes.io/part-of: redis-cluster-lab
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      # kubeadm Worker 通常没有 worker 角色标签，因此通过排除 control-plane/master
+      # 标签来限定只调度到 node01/node02 这类 Worker 节点。
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
+                  - key: node-role.kubernetes.io/master
+                    operator: DoesNotExist
+      # 在两个可调度 Worker 均 Ready 的前提下，6 个 Pod 会保持 3:3 分布。
+      topologySpreadConstraints:
+        - maxSkew: 1
+          minDomains: 2
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis-cluster
+      containers:
+        - name: redis
+          image: m.daocloud.io/docker.io/library/redis:7.2.5
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-cluster-auth
+                  key: redis-password
+            # redis-cli 会自动使用该变量，探针命令无需把密码暴露在参数中。
+            - name: REDISCLI_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: redis-cluster-auth
+                  key: redis-password
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              umask 077
+
+              # 课堂故障实验：节点已有 Cluster 元数据时延迟重启，确保删除
+              # Master Pod 后，其他节点有足够时间完成故障判断和 Replica 晋升。
+              if [ -f /data/nodes.conf ]; then
+                sleep 20
+              fi
+
+              cp /etc/redis/redis.conf /data/redis-runtime.conf
+              printf '\nrequirepass %s\nmasterauth %s\n' \
+                "${REDIS_PASSWORD}" "${REDIS_PASSWORD}" \
+                >> /data/redis-runtime.conf
+
+              exec redis-server /data/redis-runtime.conf \
+                --cluster-announce-ip "${POD_IP}" \
+                --cluster-announce-port 6379 \
+                --cluster-announce-bus-port 16379
+          ports:
+            - name: client
+              containerPort: 6379
+              protocol: TCP
+            - name: cluster-bus
+              containerPort: 16379
+              protocol: TCP
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - test "$(redis-cli -h 127.0.0.1 -p 6379 ping)" = "PONG"
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 30
+          livenessProbe:
+            # 只检查 Redis 进程，不把丢失多数派当成容器故障。
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - test "$(redis-cli -h 127.0.0.1 -p 6379 ping)" = "PONG"
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -ec
+                - test "$(redis-cli -h 127.0.0.1 -p 6379 ping)" = "PONG"
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+              ephemeral-storage: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+              ephemeral-storage: 1Gi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/redis
+              readOnly: true
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: config
+          configMap:
+            name: redis-cluster-config
+            items:
+              - key: redis.conf
+                path: redis.conf
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: redis-local-static
+        resources:
+          requests:
+            storage: 1Gi
