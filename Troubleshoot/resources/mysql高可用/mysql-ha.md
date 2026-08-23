@@ -61,11 +61,10 @@ chown -R 1001:1001 /data/mysql-ha/secondary-0
 chmod 770 /data/mysql-ha/secondary-0
 ```
 
-回到 `master01`，检查 Local PV 中的路径和节点绑定：
+回到 `master01`，创建PV yaml：
 
 ```bash
 vim /root/resources/mysql-ha-local-pv.yaml
-grep -nEA2 'path:|kubernetes.io/hostname|values:' /root/resources/mysql-ha-local-pv.yaml
 ```
 
 预期 Primary PV 指向 `node01:/data/mysql-ha/primary-0`，Secondary 0 PV 指向 `node02:/data/mysql-ha/secondary-0`，Secondary 1 PV 指向 `node01:/data/mysql-ha/secondary-1`。
@@ -136,7 +135,7 @@ for POD in my-mysql-secondary-0 my-mysql-secondary-1; do
   echo "===== ${POD} ====="
   kubectl exec "${POD}" -- bash -ec \
     'mysql -uroot \
-    -p"$(cat /opt/bitnami/mysql/secrets/mysql-root-password)" \
+    -p"123456" \
     -e "SHOW REPLICA STATUS\\G"' | \
   grep -E 'Source_Host|Replica_IO_Running|Replica_SQL_Running|Seconds_Behind_Source|Last_IO_Error|Last_SQL_Error'
 done
@@ -159,7 +158,7 @@ Last_SQL_Error:
 ```bash
 kubectl exec my-mysql-primary-0 -- bash -ec '
   mysql -uroot \
-  -p"$(cat /opt/bitnami/mysql/secrets/mysql-root-password)" \
+  -p"123456" \
   -e "
     CREATE DATABASE IF NOT EXISTS ha_test;
     CREATE TABLE IF NOT EXISTS ha_test.marker (
@@ -167,8 +166,7 @@ kubectl exec my-mysql-primary-0 -- bash -ec '
       message VARCHAR(100)
     );
     REPLACE INTO ha_test.marker VALUES (1, \"from-primary\");
-  "
-'
+  "'
 ```
 
 在两个 Secondary 查询：
@@ -177,7 +175,7 @@ kubectl exec my-mysql-primary-0 -- bash -ec '
 for POD in my-mysql-secondary-0 my-mysql-secondary-1; do
   kubectl exec "${POD}" -- bash -ec \
     'mysql -uroot \
-    -p"$(cat /opt/bitnami/mysql/secrets/mysql-root-password)" \
+    -p"123456" \
     -e "SELECT @@hostname, message FROM ha_test.marker;"'
 done
 ```
@@ -203,19 +201,11 @@ kubectl get pods -l app=php
 ```bash
 mkdir -p /root/mysql-backup
 
-kubectl exec deployment/mysql -- sh -ec '
-  DUMP_BIN="$(command -v mariadb-dump || command -v mysqldump)"
-  DB_PASSWORD="${MARIADB_ROOT_PASSWORD:-${MYSQL_ROOT_PASSWORD:-}}"
-
-  exec "$DUMP_BIN" \
-    -uroot -p"$DB_PASSWORD" \
-    --databases discuz \
-    --single-transaction \
-    --quick \
-    --routines \
-    --events \
-    --triggers \
-    --hex-blob
+kubectl exec deployment/mysql -- sh -c '
+  mysqldump \
+    -uroot \
+    -p"$MARIADB_ROOT_PASSWORD" \
+    --databases discuz
 ' > /root/mysql-backup/discuz.sql
 
 test -s /root/mysql-backup/discuz.sql && echo "备份成功"
@@ -225,9 +215,7 @@ test -s /root/mysql-backup/discuz.sql && echo "备份成功"
 
 ```bash
 kubectl exec -i my-mysql-primary-0 -- bash -ec '
-  exec mysql -uroot \
-  -p"$(cat /opt/bitnami/mysql/secrets/mysql-root-password)"
-' < /root/mysql-backup/discuz.sql
+  exec mysql -uroot -p"123456"' < /root/mysql-backup/discuz.sql
 ```
 
 确认新库有 291 张表：
@@ -235,7 +223,7 @@ kubectl exec -i my-mysql-primary-0 -- bash -ec '
 ```bash
 kubectl exec my-mysql-primary-0 -- bash -ec '
   mysql -N -uroot \
-  -p"$(cat /opt/bitnami/mysql/secrets/mysql-root-password)" \
+  -p"123456" \
   -e "SELECT COUNT(*) FROM information_schema.TABLES
       WHERE TABLE_SCHEMA=\"discuz\"
         AND TABLE_TYPE=\"BASE TABLE\";"'
@@ -263,7 +251,7 @@ kubectl exec -i deployment/mysql -- sh -ec '
 ```bash
 kubectl exec -i my-mysql-primary-0 -- bash -ec '
   exec mysql -uroot \
-  -p"$(cat /opt/bitnami/mysql/secrets/mysql-root-password)" \
+  -p"123456" \
   --batch --raw --skip-column-names
 ' < /root/resources/migration-check.sql \
   > /root/mysql-backup/new-check.txt
@@ -286,7 +274,7 @@ diff -u \
   /root/mysql-backup/new-check.sorted.txt
 ```
 
-没有输出，表示忽略行顺序后，数据库对象数量和每张表的精确行数一致。
+没有输出，表示忽略行顺序后，新旧数据库的表总数和每张表精确行数一致。
 
 > **扩展阅读：生产环境如何进一步校验数据**
 >
@@ -294,7 +282,7 @@ diff -u \
 >
 > 生产环境通常会按主键范围将大表分成多个小块，分别比较每个分块的行数和内容哈希。哈希一致，说明该分块的内容高度可信地一致；哈希不一致，则继续缩小主键范围，直到找到具体的差异记录。分块校验可以减少对数据库的一次性压力，也便于失败后重试。
 >
-> 无论使用行数还是分块哈希，新旧数据库都必须处于同一个业务时间点。因此，校验时需要停止业务写入，或在更大规模的迁移中配合 Binlog/CDC 追平增量数据。本实验数据量较小，不实际执行分块校验，掌握这个思路即可。
+> 无论使用行数还是分块哈希，新旧数据库都必须处于同一个业务时间点。因此，校验时需要停止业务写入，或在更大规模的迁移中配合 Binlog/CDC(Change Data Capture) 追平增量数据。本实验数据量较小，不实际执行分块校验，掌握这个思路即可。
 
 ### 2. 检查两个 Secondary
 
@@ -303,7 +291,7 @@ for POD in my-mysql-secondary-0 my-mysql-secondary-1; do
   echo "===== ${POD} ====="
   kubectl exec "${POD}" -- bash -ec \
     'mysql -N -uroot \
-    -p"$(cat /opt/bitnami/mysql/secrets/mysql-root-password)" \
+    -p"123456" \
     -e "SELECT COUNT(*) FROM information_schema.TABLES
         WHERE TABLE_SCHEMA=\"discuz\"
           AND TABLE_TYPE=\"BASE TABLE\";"'
@@ -321,8 +309,7 @@ done
 ```bash
 kubectl exec -it my-mysql-primary-0 -- bash -ec '
   mysql -uroot \
-  -p"$(cat /opt/bitnami/mysql/secrets/mysql-root-password)"
-'
+  -p"123456"'
 ```
 
 ```sql
@@ -396,6 +383,8 @@ kubectl rollout status deployment/php --timeout=180s
 
 测试：首页、登录、发帖、回复、修改资料。全部成功说明新 Primary 可用。
 
+hosts文件位置：C:\Windows\System32\drivers\etc\hosts
+
 ### 3. 开启从库读取
 
 在 `config_global.php` 中增加：
@@ -443,7 +432,7 @@ for POD in \
   my-mysql-secondary-1; do
   kubectl exec "${POD}" -c mysql -- bash -ec '
     mysql -uroot \
-    -p"$(cat /opt/bitnami/mysql/secrets/mysql-root-password)" \
+    -p"123456" \
     -e "
       SET GLOBAL general_log=OFF;
       SET GLOBAL log_output=\"TABLE\";
@@ -461,7 +450,7 @@ done
 ```bash
 kubectl exec my-mysql-primary-0 -c mysql -- bash -ec '
   mysql -uroot \
-  -p"$(cat /opt/bitnami/mysql/secrets/mysql-root-password)" \
+  -p"123456" \
   -e "
     SELECT event_time, LEFT(argument,160) AS sql_text
     FROM mysql.general_log
@@ -483,7 +472,7 @@ for POD in my-mysql-secondary-0 my-mysql-secondary-1; do
   echo "===== ${POD} ====="
   kubectl exec "${POD}" -c mysql -- bash -ec '
     mysql -uroot \
-    -p"$(cat /opt/bitnami/mysql/secrets/mysql-root-password)" \
+    -p"123456" \
     -e "
       SELECT event_time, LEFT(argument,160) AS sql_text
       FROM mysql.general_log
@@ -513,7 +502,7 @@ for POD in \
   my-mysql-secondary-1; do
   kubectl exec "${POD}" -c mysql -- bash -ec '
     mysql -uroot \
-    -p"$(cat /opt/bitnami/mysql/secrets/mysql-root-password)" \
+    -p"123456" \
     -e "
       SET GLOBAL general_log=OFF;
       TRUNCATE TABLE mysql.general_log;
@@ -523,18 +512,6 @@ done
 ```
 
 `general_log` 会记录大量 SQL 并增加数据库开销，只应在实验验证期间短暂开启。
-
-### 5. 实验验收
-
-| 检查项目 | 结果 |
-|---|---|
-| Primary、两个 Secondary 正常 | 通过 / 失败 |
-| 新旧数据库精确行数一致 | 通过 / 失败 |
-| 首页和登录正常 | 通过 / 失败 |
-| 发帖、回复正常 | 通过 / 失败 |
-| 修改资料正常 | 通过 / 失败 |
-| 写入 Primary、查询 Secondary | 通过 / 失败 |
-| 主从复制线程正常 | 通过 / 失败 |
 
 ---
 
@@ -646,4 +623,3 @@ Router 只能为新建连接选择新 Primary，已断开的连接和未完成�
 参考：[MySQL InnoDB Cluster](https://dev.mysql.com/doc/mysql-shell/8.4/en/mysql-innodb-cluster.html)、[Primary 选举](https://dev.mysql.com/doc/mysql-shell/8.4/en/configuring-election-process.html)、[Group Replication 网络分区与 Quorum](https://dev.mysql.com/doc/refman/en/group-replication-network-partitioning.html)、[MySQL Operator Service](https://dev.mysql.com/doc/mysql-operator/en/mysql-operator-innodbcluster-service.html)。
 
 **增加 Secondary 是读扩容；能够检测故障、隔离旧主、提升新主并切换写入入口，才是自动高可用。**
-
