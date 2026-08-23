@@ -133,7 +133,7 @@ a stable controlPlaneEndpoint address
 ---
 
 ## 三、目标架构
-
+**两个master的基础镜像使用node03的镜像即可，选择node03的.ovf文件。**
 ### 1. 地址规划
 
 | 主机 | IP | 作用 |
