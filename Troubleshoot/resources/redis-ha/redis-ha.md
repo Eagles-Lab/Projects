@@ -1,4 +1,4 @@
-# Redis 主从复制与 Cluster 部署实验
+# Redis 高可用
 
 ## 一、实验目标
 
