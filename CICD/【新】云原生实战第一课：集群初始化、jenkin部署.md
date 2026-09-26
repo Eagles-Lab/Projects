@@ -31,7 +31,7 @@
 
 ### **第一部分：K8S部署**
 #### 1.1 基础环境配置
-> 推荐系统选用 CentOS 7，如果选用 Rocky Linux 请参考：[RockyLinux 9.5 部署Kubernetes 集群（Containerd）](https://blog.csdn.net/leblanceAndSherry/article/details/147497418)
+> 推荐系统选用 CentOS 7，如果选用 Rocky Linux 请参考：[Kubernetes 手动安装手册](https://ncloud.eagleslab.com/Kubernetes/%E6%89%8B%E5%8A%A8%E5%AE%89%E8%A3%85%E6%89%8B%E5%86%8C.html)
 
 配置静态ip地址
 
