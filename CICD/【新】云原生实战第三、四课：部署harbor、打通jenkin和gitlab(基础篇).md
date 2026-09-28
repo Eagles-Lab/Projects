@@ -1,4 +1,4 @@
-### 云原生实战第四课：部署harbor、打通jenkin和gitlab（基础篇）
+### 云原生实战第四课：部署harbor、打通jenkins和gitlab（基础篇）
 #### 课程目标
 1、部署harbor
 
@@ -11,7 +11,8 @@
 
 2、为什么要构建自动化pipeline打通gitlab到jenkins
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1757205617484-2d34cd46-6c2f-4e40-8b42-ced4630995b6.png?x-oss-process=image%2Fformat%2Cwebp)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1757205617484-2d34cd46-6c2f-4e40-8b42-ced4630995b6.png)
 
 开发人员往gitlab里提交更新的代码之后，想要发布，需要经历如下步骤。
 
@@ -27,7 +28,7 @@
 
 传统的上线方式，上述步骤需要运维人员在单台或多台主机依次执行，流程步骤繁杂、无法可视化，极容易出错，回滚麻烦。
 
-我们引入jenkins中的Pipeline,就是为了把运维人员手动在单个或多个节点的任务(例如代码拉取、单元测试、构建、部署等)连接到一起，相当于建立了一条流水线，每次上线时，只需要点击构建，即执行这条Pipeline流水线，这些任务就会安装提前设定好的样子依次在单台或多台主机执行，并且我们可以在jenkins界面看到整个过程，实现可视化。
+我们引入jenkins中的Pipeline,就是为了把运维人员手动在单个或多个节点的任务(例如代码拉取、单元测试、构建、部署等)连接到一起，相当于建立了一条流水线，每次上线时，只需要点击构建，即执行这条Pipeline流水线，这些任务就会按照提前设定好的样子依次在单台或多台主机执行，并且我们可以在jenkins界面看到整个过程，实现可视化。
 
 
 
@@ -40,7 +41,7 @@ kubectl create namespace harbor
 ```
 
 #### 1.2 创建harbor nfs存储
-之前nfs以及部署过了，我们这边只要添加一个目录就行了
+之前nfs已经部署过了，我们这边只要添加一个目录就行了
 
 服务端
 
@@ -58,7 +59,7 @@ showmount  -e localhost                     #检查共享目录信息
 客户端
 
 ```bash
-showmount  -e 192.168.198.143 #检查共享目录信息
+showmount  -e 192.168.198.24 #检查共享目录信息
 ```
 
 #### 1.3 创建NFSprovisioner
@@ -164,13 +165,13 @@ spec:
           - name: PROVISIONER_NAME
             value: example.com/nfs
           - name: NFS_SERVER
-            value: 192.168.198.143   # NFS服务端地址
+            value: 192.168.198.24   # NFS服务端地址
           - name: NFS_PATH
             value: /data/nfs/harbor
       volumes:
       - name: nfs-client-root
         nfs:
-          server: 192.168.198.143   #  NFS服务端地址
+          server: 192.168.198.24   #  NFS服务端地址
           path: /data/nfs/harbor  # NFS共享目录
 EOF
 ```
@@ -189,7 +190,7 @@ Harbor的database和redis组件是为有状态服务，需要对Harbor数据做�
 
 本处基于NFS创建StorageClass存储类，NFS服务器和共享目录为：
 
-·NFS服务器地址：192.168.198.143
+·NFS服务器地址：192.168.198.22
 
 ·NFS共享目录：/data/nfs/harbor
 
@@ -224,7 +225,7 @@ helm repo add harbor https://helm.goharbor.io
 helm repo  list                  # 查看添加的Chart
 ```
 
-因为需要修改的参数比较多，在命令行直接helminstall比较复杂，我就将Chart包下载到本地，再修改一些配置。这样比较直观，也比较符合实际工作中的业务环境。
+因为需要修改的参数比较多，在命令行直接helm install比较复杂，我就将Chart包下载到本地，再修改一些配置。这样比较直观，也比较符合实际工作中的业务环境。
 
 ```yaml
 helm search repo harbor --versions
@@ -242,7 +243,7 @@ expose:
   tls:
     enabled: false    # 关闭tls安全加密认证（如果开启需要配置证书）
 ...
-externalURL: http://192.168.198.142:30002   # 使用nodePort且关闭tls认证，则此处需要修改为http协议和expose.nodePort.ports.http.nodePort指定的端口号，IP即为kubernetes的节点IP地址
+externalURL: http://192.168.198.22:30002   # 使用nodePort且关闭tls认证，则此处需要修改为http协议和expose.nodePort.ports.http.nodePort指定的端口号，IP即为kubernetes的节点IP地址
  
 # 持久化存储配置部分
 persistence:
@@ -300,7 +301,7 @@ external:
     host: "postgresql.default.svc.cluster.local" # 修改为pgsql的svc地址
     port: "5432"
     username: "lb" 
-    password: "13812121100xX$"
+    password: "13812121100xX"
     coreDatabase: "registry" 
     notaryServerDatabase: "notary_server"
     notarySignerDatabase: "notary_signer"
@@ -326,7 +327,7 @@ redis:
 
 ```yaml
 创建用户
-create user lb with password '13812121100xX$';
+create user lb with password '13812121100xX';
 创建那三个库并授权给该用户
 create database registry owner lb;
 create database notary_server owner lb;
@@ -345,12 +346,12 @@ postgresql-59764f94cf-86cmb   1/1     Running   0          5h37m
 redis-57bb46757-dpxlb         1/1     Running   0          5h54m
 [root@k8s-tools harbor]# kubectl exec -ti postgresql-59764f94cf-86cmb sh
 kubectl exec [POD] [COMMAND] is DEPRECATED and will be removed in a future version. Use kubectl kubectl exec [POD] -- [COMMAND] instead.
-# su - postgres
-postgres@postgresql-59764f94cf-86cmb:~$ psql
+# su - postgres pgsql数据库安装时会自动创建一个叫 postgres 的 Linux 系统用户，数据库服务进程就是以它的身份运行的，数据文件也归它所
+postgres@postgresql-59764f94cf-86cmb:~$ psql 打开数据库控制台
 psql (10.9 (Ubuntu 10.9-1.pgdg18.04+1))
 Type "help" for help.
 
-postgres=# create user lb with password '13812121100xX$';
+postgres=# create user lb with password '13812121100xX';
 CREATE ROLE
 postgres=# \du
                                    List of roles
@@ -419,28 +420,33 @@ nfs-proversitioner-66d5fd8646-8wc8p     1/1     Running   0          107m
 ```
 
 #### 1.6 登录harbor ui界面
-[http://192.168.198.142:30002/](http://192.168.198.142:30002/)
+[http://192.168.198.22:30002/](http://192.168.198.142:30002/)
 
 admin
 
 Harbor12345
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1758441062559-19a880b0-8590-4fa8-ab23-5aac3d57d353.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1758441062559-19a880b0-8590-4fa8-ab23-5aac3d57d353.png)
 
 创建一个项目
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1758441114962-fb3931f4-abd4-4865-96bf-038d89cba8a6.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1758441114962-fb3931f4-abd4-4865-96bf-038d89cba8a6.png)
 
 #### 1.7 往harbor中推送镜像
-配置docker添加對harbor的信任（强调：在所有k8s集群的节点都添加，包括测试、生产、工具集群）
+配置docker添加对harbor的信任（强调：在所有k8s集群的节点都添加，包括测试、生产、工具集群）
 
 ```yaml
 # 如果直接登录我们的harbor仓库会报错http: server gave HTTP response to HTTPS client，需要配置insecure-registries
 [root@test06 ~]# cat /etc/docker/daemon.json 
 {
 "exec-opts": ["native.cgroupdriver=systemd"],
-"insecure-registries":["192.168.198.142:30002"], 
-"registry-mirrors":["xxx"],
+"insecure-registries":["192.168.198.22:30002"], 
+"registry-mirrors": [                                                                                            
+  "https://docker.m.daocloud.io",                                                                                
+  "https://docker.1panel.live"                                                                                   
+],                            
 "live-restore":true
 }
 [root@test06 ~]# systemctl restart docker
@@ -449,7 +455,7 @@ Harbor12345
 登录（如果是push操作，或者是拉取私有仓库的镜像都需要登录，后面我们需要在测试、生产拉取私有仓库镜像，在工具集群push镜像，所以三套集群都执行登录操作）
 
 ```yaml
-[root@test06 ~]# docker login -u admin -p Harbor12345 http://192.168.198.142:30002/
+[root@test06 ~]# docker login -u admin -p Harbor12345 http://192.168.198.22:30002/
 WARNING! Using --password via the CLI is insecure. Use --password-stdin.
 WARNING! Your password will be stored unencrypted in /root/.docker/config.json.
 Configure a credential helper to remove this warning. See
@@ -463,22 +469,24 @@ Login Succeeded
 ```yaml
 docker pull centos:8
 docker images|grep centos
-docker tag centos:8 192.168.198.142:30002/online/centos:8
-docker push 192.168.198.142:30002/online/centos:8
+docker tag centos:8 192.168.198.22:30002/online/centos:8
+docker push 192.168.198.22:30002/online/centos:8
 ```
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1758442665055-54c6df61-1e8f-4c48-8bf2-7cc985ecd84b.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1758442665055-54c6df61-1e8f-4c48-8bf2-7cc985ecd84b.png)
 
 以后就可以从我们自己的harbor仓库拉取镜像了
 
 ```yaml
-docker pull 192.168.198.142:30002/online/centos:8
+docker pull 192.168.198.22:30002/online/centos:8
 ```
 
 
 
 ### 第二部分：打通gitlab到jenkins
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1760226730690-c72ef6dc-61ea-442f-b0a4-ca268816de3c.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1760226730690-c72ef6dc-61ea-442f-b0a4-ca268816de3c.png)
 
 #### 2.1 jenkins的Pipeline有几个核心概念
 Node：节点，一个Node 就是一个Jenkins 节点，Master 或者Agent，是执行 Step 的具体运行环境，比如我们之前动态运行的Jenkins Slave 就是一个Node 节点
@@ -494,7 +502,7 @@ Step: 步骤，Step是最基本的操作单元，可以是打印一句话，也�
 
 
 #### 2.2 创建jenkins中的pipeline的两种语法
-Pipeline 脚本是由 Groovy语言实现的，但是我们泠必要单独去学习Groovy，用到啥查
+Pipeline 脚本是由 Groovy语言实现的，但是我们没必要单独去学习Groovy，用到啥查
 
 Pipeline 支持两种语法：Declarative(声明式)和Scripted (脚本式)语法
 
@@ -546,6 +554,16 @@ node {
 #### 2.3 Pipeline 也有两种创建方法
 pipeline script 和 pipeline script from scm
 
+| | Pipeline script | Pipeline script from SCM |
+| --- | --- | --- |
+| 流水线代码存放位置 | 直接写在 Jenkins 任务的网页文本框里 | 放在 Git 仓库里（通常叫 `Jenkinsfile`），Jenkins 去拉取 |
+| 版本管理 | ❌ 没有，改了就改了，无法追溯 | ✅ 跟着 Git 走，每次修改有 commit 记录 |
+| 团队协作 | ❌ 别人看不到、改不了（除非登 Jenkins） | ✅ 团队都能看，可以走代码评审 |
+| 回滚能力 | ❌ 改坏了很难找回旧版本 | ✅ `git revert` 或选旧 commit 即可 |
+| 和代码同步 | ❌ 代码和流水线分离，容易不一致 | ✅ 流水线和项目代码同仓库、同分支演进 |
+| 适用场景 | 临时测试、学习练手 | **生产/正式项目标配** |
+
+
 
 
 ##### 2.3.1 pipeline script方式（牛刀小试）
@@ -553,16 +571,17 @@ pipeline script 和 pipeline script from scm
 
 在Jenkins的 Web UI界面中输入脚本
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754227197745-7f7cdeb9-cb79-455d-bcd6-5d934b7834ad.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754227197745-7f7cdeb9-cb79-455d-bcd6-5d934b7834ad.png)
 
 在最下方的pipeline区域输入如下脚本，然后点击保存。
 
 注意在应用中，一些slave里有特定的环境，我们的构建任务必须在该环境里运行，这就需要我们指定slave运行，如何指定呢?
 
-需要用到我们之前添加slave pod时指定的label标签，我们之前在之前的小节中指定过一个slave pod并将其label设置为xushenglin-test1,这个标签就是我们选中该slave pod的唯一标识
+需要用到我们之前添加slave pod时指定的label标签，我们在之前的小节中指定过一个slave pod并将其label设置为xxx-test1,这个标签就是我们选中该slave pod的唯一标识
 
 ```yaml
-node('xushenglin-test1') {
+node('xxx-test1') {
   stage('Clone') {
     echo "1.Clone Stage"
   }
@@ -580,7 +599,8 @@ node('xushenglin-test1') {
 
 点击构建，然后查看console output，可以看到选中了一个agent名为test1-w0crf，而test1-w0crf就是在k8s临时创建的用于构建本次任务的slave pod，构建完毕后会自动删除该slave pod
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754228623206-ee5221be-f9ec-4f14-9b0f-f4f1bdb72911.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754228623206-ee5221be-f9ec-4f14-9b0f-f4f1bdb72911.png)
 
 
 
@@ -592,7 +612,7 @@ node('xushenglin-test1') {
 ###### 2.3.2.1 思路梳理(以一个go程序为例)
 我们的大致思路是。以一个go程序为例
 
-一：在gitab里创建一个项目，该项目用来管理go程序，创建完毕后记录该项目的http或ssh链接信息
+一：在gitlab里创建一个项目，该项目用来管理go程序，创建完毕后记录该项目的http或ssh链接信息
 
 二：在jenkins里创建一个go的流水线
 
@@ -610,12 +630,13 @@ node('xushenglin-test1') {
 
 通过创建一个Jenkinsfile脚本文件放入项目源码库中,然后jenkins配置SCM，点击构建后拉取源代码，jenkins会从源代码/项目根目录下载入Jenkinsfile文件来执行规定的构建(推荐该方式)
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754227250982-57d4b157-ae35-4182-b4a5-97242d1634ab.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754227250982-57d4b157-ae35-4182-b4a5-97242d1634ab.png)
 
 
 
 ###### 2.3.2.2 在jenkins里创建一个跑go项目的流水线
-先看go事例
+先看go示例
 
 ```yaml
 项目之前创建过，项目名为：redhat
@@ -629,40 +650,49 @@ http://git.k8s.local:1180/root/redhat.git
 
 在jenkins里创建一个跑go项目的流水线
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754236056413-d222a2bd-d6e1-47a9-a3bb-235217f29f6c.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754236056413-d222a2bd-d6e1-47a9-a3bb-235217f29f6c.png)
 
 
 
 ###### 2.3.2.2 构建触发器
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754920956150-26f913d9-6807-4f04-aef8-89abe26aca05.png)
+<!-- 这是一张图片，ocr 内容为：构建触发器 其他工程构建后触发? 定时构建? BUILD WHEN A CHANGE IS PUSHED TO GITLAB,GITLAB WEBHOOK URL-HTTP//192,198,327096/PROJECT/AO-PIPELINE-D GITHUB HOOK TRIGGER FOR GITSCM POLLING? 轮询SCM 静默期 触发远程构建(例如,使用脚本)? 这个TOKEN很重要,后面在GITLAB创建WEBHOOK时会用到 身份验证令牌 007 USE THE FOLLOWING URL TO TRIGGER BUILD RENOTELY  IRLFOKENOT/GO-PIPEINE DENOFBUILDTOKEN-TOKEN-TINPARAM TOKEN TOKEN NAME OPTIONALLY APPEND &CAUSERCAUSE+TEXT TO PROVIDE TEXT TEXT THAT WILL BE INCLUDED IN THE RECORDED CAUSE -->
+![](images/1789817766371-b4745285-7e83-432e-8a2f-7198394df9c9.jpeg)
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754921194654-e89e76d7-628a-408f-bead-3e0faee0bb0a.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754921194654-e89e76d7-628a-408f-bead-3e0faee0bb0a.png)
 
 
 
 ###### 2.3.2.3 配置用于构建的分支
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754921270343-d4541d0c-4e26-476e-a631-a38f80c87d97.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754921270343-d4541d0c-4e26-476e-a631-a38f80c87d97.png)
 
 
 
 ###### 2.3.2.4 在gitlab中配置webhook
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754921548517-8f4655dc-aec1-4f32-a511-827e942bda19.png)
+<!-- 这是一张图片，ocr 内容为：17 A GITLAB MORE Y PROJECTS SEARCH OR JUMP TO... GROUPS V TO HIDPOVE   WE   WE WE WE WOADE  TO PERIODIALLY COLLES  ANDOMATON  THES  ON  THANSED  SETINGS MORE   SEND USAGE DATA ADMINISTRATOREDHAT>WEBHOOK SETTINGS WEBHOOK 合 URL WEBHOOK JENKINS中的TOKEN HTTP://192.168.198.32:7096/JOB/GO-PIPELINE-DEMO/BUILDPTOKEN WEBHOOKS CAN BE USED FOR BINDING 007 EVENTS WHEN SOMETHING IS HAPPENING WITHIN THE PROJECT. SECRET TOKEN 11 USE THIS TOKEN TO VALIDATE RECEIVED PAYLOADS,IT WILL BE SENT WITH THE REQUEST IN THE X-GITTP HTTP HEA 勾选哪些动作会触发构建,比如提交代码 PUSH EVENTS BRANCH NAME OR WILDCARD PATTERN TO TRIGGER ON(LEAVE BLANK FOR ALL) THIS URL WILL BE TRIGGERED BY A PUSH TO THE REPOSITORY TAG PUSH EVENTS THIS URL WILL BE TRIQGERED WHEN A NEW TAQ IS PUSHED TO THE REPOSITORY COMMENTS THIS URL WILL BE TRIGGERED WHEN SOMEONE ADDS A COMMENT CONFIDENTIAL COMMENTS THIS URL WILL BE TRIGGERED WHEN SOMEONE ADDS A COMMENT ON A CONFIDENTIAL ISSUE ISSUES EVENTS THIS URL WILL BE TRIGGERED WHEN AN ISSUE IS CREATED/UPDATED/MERGED CONFIDENTIAL ISSUES EVENTS THIS URL WILL BE TRIGGERED WHEN A CONFIDENTIAL ISSUE IS CREATED/UPDATED -->
+![](images/1789818710901-afd1a95d-648e-4f8b-87c7-7274bd26c6c5.jpeg)
 
 点击Add webhook，在屏幕上面会出现一行粉字:Url is blocked: Requests to the local network are not  allowed  则需要进入 GitLab首页，点击下图所示Admin Area->Settings ->NetWork->勾选 Outbound requests，然 后->点击save changes
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754921740005-bf46a6f8-73fc-457e-8f84-783b6042c8c2.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754921740005-bf46a6f8-73fc-457e-8f84-783b6042c8c2.png)
 
 点击save changes之后，回到项目的webhooks界面点击测试
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754922422956-4c6e7208-8cb4-4182-9515-278b7a9f6f71.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754922422956-4c6e7208-8cb4-4182-9515-278b7a9f6f71.png)
 
 点击Push events后会报一个403错误，<font style="color:rgb(13, 13, 13);">Jenkins默认启用CSRF防护，要求请求携带</font>`<font style="color:rgb(13, 13, 13);background-color:rgba(27, 31, 35, 0.05);">Crumb</font>`<font style="color:rgb(13, 13, 13);">头（防跨站请求伪造令牌）。如果Hook未包含Crumb，会被拦截。</font>需要做三件事禁用csrf跨站防护：
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754922536300-82424db4-6382-49a9-a648-816464f778b1.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754922536300-82424db4-6382-49a9-a648-816464f778b1.png)
 
 系统管理->全局安全配置->勾选匿名用户具有可读权限
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754923035440-ad90d549-d500-4e49-9f9a-edb8e1725d36.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754923035440-ad90d549-d500-4e49-9f9a-edb8e1725d36.png)
 
 禁用csrf跨站请求，有两种方式
 
@@ -676,7 +706,8 @@ def jenkins = Jenkins.instance
 jenkins.setCrumbIssuer(null)
 ```
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754923666519-b70fad11-0632-405c-b72c-a2f588337a0e.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754923666519-b70fad11-0632-405c-b72c-a2f588337a0e.png)
 
 2、永久
 
@@ -688,27 +719,31 @@ jenkins.setCrumbIssuer(null)
         value: "-Dhudson.security.csrf.GlobalCrumbIssuerConfiguration.DISABLE_CSRF_PROTECTION=true"
 ```
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754923812659-619a0555-ea82-4637-afd7-93d9585599d1.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754923812659-619a0555-ea82-4637-afd7-93d9585599d1.png)
 
 系统管理-》插件管理-》安装GitLab插件
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1760255588025-350cdb45-f36d-4136-849d-b9ad552aed0e.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1760255588025-350cdb45-f36d-4136-849d-b9ad552aed0e.png)
 
-安装完毕后重启，在url地址后输入restart，即:[http://192.168.198.32:709/](http://192.168.198.32:709/)restart
+安装完毕后重启，在url地址后输入restart，即:[http://192.168.198.22:7096/](http://192.168.198.32:709/)restart
 
 然后点击系统管理-》系统配置-》找到gitlab，去掉勾选:Enable authentication for '/project' end-point
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754923902409-bb5617a0-4d60-4144-902d-2de9ff470d1a.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754923902409-bb5617a0-4d60-4144-902d-2de9ff470d1a.png)
 
 
 
 然后再次点击test里的Push events，显示如下内容，代表手动触发push 事件成功
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754924065301-6b6d0f7e-e062-4be6-b801-854ce1f1e8ff.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754924065301-6b6d0f7e-e062-4be6-b801-854ce1f1e8ff.png)
 
 
 
-###### 2.3.2.5 往gitlab master和devlop分支提交一段go代码
+###### 2.3.2.5 往gitlab master和develop分支提交一段go代码
 master
 
 ```python
@@ -734,7 +769,7 @@ func main() {
 
 
 
-devlop
+develop
 
 ```yaml
 package main 
@@ -759,7 +794,7 @@ func main() {
 脚本式Jenkinsfile模板
 
 ```python
-node('xushenglin-test1') {
+node('xxx-test1') {
     stage('Clone') {
       echo "1.Clone Stage"
     }
@@ -782,11 +817,11 @@ node('xushenglin-test1') {
 ```
 
 ### 
-注意我们在之前定义过一个pod Template，即slave pod的生成模板，该模板里启动pod引用的是一个镜像jenkins/inbound-agent:jdk11，也就是说，如果我们真的按照上面写的流水线来的，node(xushenglin-test1)也是选中用该镜像jenkins/inbound-agent:jdk11启动的一个slave pod来进行构建，如果我们要构建的是go程序，那么该镜像就不适用了，我们需要用一个具有go环境的镜像才可以。如果你真这么做了，看似可以，实则是一个坑。为什么呢?
+注意我们在之前定义过一个pod Template，即slave pod的生成模板，该模板里启动pod引用的是一个镜像jenkins/inbound-agent:jdk21，也就是说，如果我们真的按照上面写的流水线来的，node(xxx-test1)也是选中用该镜像jenkins/inbound-agent:jdk21启动的一个slave pod来进行构建，如果我们要构建的是go程序，那么该镜像就不适用了，我们需要用一个具有go环境的镜像才可以。如果你真这么做了，看似可以，实则是一个坑。为什么呢?
 
 
 
-因为除了go程序之外，你还有可能会构建java，构建python，那么你需要定制一个非常大的镜像，里面有所有你想要的环境，而且还要有qit工具、docker工具、kubectl等工具，能想象到该镜像会变得多大了吧，而且很不灵活。
+因为除了go程序之外，你还有可能会构建java，构建python，那么你需要定制一个非常大的镜像，里面有所有你想要的环境，而且还要有git工具、docker工具、kubectl等工具，能想象到该镜像会变得多大了吧，而且很不灵活。
 
 
 
@@ -804,9 +839,10 @@ node('xushenglin-test1') {
 
 然后我们可以删掉之前创建的pod Template
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754925202129-a36e7a25-1895-4a76-9576-68155c354f2d.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754925202129-a36e7a25-1895-4a76-9576-68155c354f2d.png)
 
-然后在pipeline的代码里里动态生成pod template，在里面写好要引用的镜像 ，然后在每个stage里调用专门的镜像就可以，我们可以看到pod slave里会启动多个容器。
+然后在pipeline的代码里动态生成pod template，在里面写好要引用的镜像 ，然后在每个stage里调用专门的镜像就可以，我们可以看到pod slave里会启动多个容器。
 
 这么做的好处是，如果我们想构建另外一条用于构建java程序的流水线，那么我们只需要再创建了一个拥有java环境的小镜像就可以，至于2、3、4提到的镜像都是可以复用的
 
@@ -816,7 +852,7 @@ node('xushenglin-test1') {
 
 2、针对go项目，我们就在go项目根目录下创建一个Jenkinsfile文件，在该文件里写入pipeline流水线代码
 
-3、针对go项目，我们就在python项目根目录下创建一个Jenkinsfile文件，在该文件里写入pipeline流水线代码
+3、针对python项目，我们就在python项目根目录下创建一个Jenkinsfile文件，在该文件里写入pipeline流水线代码
 
 这三个Jenkinsfile文件涉及到的安装有docker工具的镜像、helm工具的镜像、kubectl工具的镜像都可以复用
 
@@ -840,13 +876,17 @@ cat /root/.kube/config
 
 
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754926671523-ad3555a9-5142-4a5a-9268-163d531a9a5b.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754926671523-ad3555a9-5142-4a5a-9268-163d531a9a5b.png)
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754926698724-04ba32d3-52ab-4cbb-a0a9-5ca3005b74f4.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754926698724-04ba32d3-52ab-4cbb-a0a9-5ca3005b74f4.png)
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754926685492-08dafd05-777f-4e6f-a63e-cc2738711ecb.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754926685492-08dafd05-777f-4e6f-a63e-cc2738711ecb.png)
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754926361311-bbdc2c16-5140-41c9-80cb-02f0808448ef.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754926361311-bbdc2c16-5140-41c9-80cb-02f0808448ef.png)
 
 
 
@@ -854,11 +894,13 @@ cat /root/.kube/config
 
 在jenkins里创建一个登录harbor仓库的凭证
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754927202966-25b9d29f-477c-4a74-9dbd-e773058a6335.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754927202966-25b9d29f-477c-4a74-9dbd-e773058a6335.png)
 
 在harbor创建一个存放go镜像的仓库
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1754927624822-97ce3342-f69e-4beb-b4d9-84fc9951da4f.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1754927624822-97ce3342-f69e-4beb-b4d9-84fc9951da4f.png)
 
 
 
@@ -866,11 +908,21 @@ cat /root/.kube/config
 
 ```python
 kubectl create secret docker-registry registry-secret --namespace=default \
---docker-server=192.168.198.142:30002 --docker-username=admin  \
+--docker-server=192.168.198.22:30002 --docker-username=admin  \
 --docker-password=Harbor12345
 ```
 
-
+```python
+① 代码 push 到 GitLab (git.k8s.local)
+        │
+② webhook 触发 Jenkins
+        │
+③ Jenkins 流水线: 拉代码 → 编译 → 打成 Docker 镜像
+        │
+④ push 镜像到 Harbor (goproject/redhat:v1)      ← 镜像存到这
+        │
+⑤ 这个 Deployment: 从 Harbor 拉镜像，在 K8s 跑起来 
+```
 
 创建deployment
 
@@ -893,13 +945,11 @@ spec:
     spec:
       containers:
       - name: test
-        image: 192.168.198.142:30002/goproject/redhat:v1
+        image: 192.168.198.22:30002/goproject/redhat:v1
       imagePullSecrets:
       - name: registry-secret
 
 ```
-
-
 
 
 
@@ -908,7 +958,8 @@ spec:
 ```python
 def label = "slave-${UUID.randomUUID().toString()}"
  
-podTemplate(label: label, containers: [
+podTemplate(label: label, containers: [                       
+  containerTemplate(name: 'jnlp', image: 'jenkins/inbound-agent:jdk21'),
   containerTemplate(name: 'golang', image: 'okteto/golang.1.17', command: 'cat', ttyEnabled: true),
   containerTemplate(name: 'docker', image: 'docker:latest', command: 'cat', ttyEnabled: true),
   containerTemplate(name: 'kubectl', image: 'cnych/kubectl', command: 'cat', ttyEnabled: true)
@@ -923,7 +974,7 @@ podTemplate(label: label, containers: [
     def gitBranch = myRepo.GIT_BRANCH
     echo "------------>本次构建的分支是：${gitBranch}"
     // 仓库地址
-    def registryUrl = "192.168.198.142:30002"
+    def registryUrl = "192.168.198.22:30002"
     def imageEndpoint = "goproject/gotest"
  
     // 获取 git commit id 作为我们后面制作的docker镜像的tag
@@ -1002,7 +1053,90 @@ EOF'''
 
 
 ###### 2.3.2.7 点击push之后，自动触发pipeline
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1756310779660-2b60eb5e-c7b4-4fca-8a0a-70a224a68813.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1756310779660-2b60eb5e-c7b4-4fca-8a0a-70a224a68813.png)
+
+
+
+###### 2.3.2.8 也可在同一集群中部署线上和测试环境(不是很建议)，通过名称空间来区分
+如测试分支流水线（dev分支），自动部署到k8s测试环境（namespace：dev）; 线上分支流水线（master分支），自动部署到k8s线上环境（namespace：prod）
+
+之前的Jenkinsfile中其实已经做了不同分支的判断，但是构建用的deployment之前没有在不同的namespace中去创建
+
+```python
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test
+  namespace: dev
+  labels:
+    app: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      labels:
+        app: test
+    spec:
+      containers:
+      - name: test
+        image: 192.168.198.32:30002/redhat/initcontainer:v1.0
+      imagePullSecrets:
+      - name: registry-secret
+
+```
+
+```python
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test
+  namespace: master
+  labels:
+    app: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      labels:
+        app: test
+    spec:
+      containers:
+      - name: test
+        image: 192.168.198.32:30002/redhat/initcontainer:v1.0
+      imagePullSecrets:
+      - name: registry-secret
+```
+
+```python
+stage('运行 Kubectl') {
+      container('kubectl') {
+        script {
+            if ("${gitBranch}" == 'origin/master') {
+              withCredentials([file(credentialsId: 'kubeconfig-shengchan', variable: 'KUBECONFIG')]) {
+                 echo "查看生产 K8S 集群 Pod 列表"
+                 sh 'echo "${KUBECONFIG}"'
+                 sh 'mkdir -p ~/.kube && /bin/cp "${KUBECONFIG}" ~/.kube/config'
+                 sh "kubectl get pods"
+                 sh "kubectl set image deployment/test test=${image} -n prod"
+              }
+            }else if("${gitBranch}" == 'origin/develop'){
+              withCredentials([file(credentialsId: 'kubeconfig-ceshi', variable: 'KUBECONFIG')]) {
+                 echo "查看测试 K8S 集群 Pod 列表"
+                 sh 'mkdir -p ~/.kube && /bin/cp "${KUBECONFIG}" ~/.kube/config'
+                 sh "kubectl get pods -n kube-system"
+                 sh "kubectl set image deployment test test=${image} -n dev"
+              }
+            }
+        }
+      } 
+```
 
 
 
@@ -1015,5 +1149,11 @@ EOF'''
 
 
 
+假如有这个报错，需要补branch api插件
 
+<!-- 这是一张图片，ocr 内容为：[PIPELINE] ] [PIPELINE] // NODE [PIPELINE]]  [PIPELINE] // PODTEMPLATE  [PIPELINE] END OF PIPELINE ALSO: ORSJENKINSCI,PLUGINS.WORKFLOW-ACTIONS-ERRORACTIONSERACTIONSERRORID: FD3FDE-6908-4CBAB5-39688250 BROOVY, LANG,MISSINGPROPERTYEXCEPTION: NO SUCH PROPERTY: SCM FOR FOR CLASS; BROOVY,LANG-BINDING AT GROOVY.LANG.BINDING.GETVARIABLE(BINDING.JAVA:63) AT PLUGINCLASSLOADER FOR SCRIPT- SECURITY//ORG.JENKINSCI.PLUGINS.SCRIPTSECURITY.SANDBOX.GROOVY.SAN VY.SANDBOXINTERCEPTOR.ONGETPROPERTY(SANDBOXINTER CEPTOR.JAVA:285) AT PLUGINCLASSLOADER FOR SCRIPT- K.IMPL.CHECKER$7.CALL(CHECKER.JAVA:375) Y.SANDBOX SECURITY//ORG.KOHSUKE.GROOVY.SA AT PLUGINCLASSLOADER FOR SCRIPT- SECURITY//ORG.KOHSUKE.GROOVY.SANDBOX.IMPL.CHECKER.CHECKEDGETPROPERTY(CHECKER.JAVAI379) AT PLUGINCLASSLOADER FOR SCRIPT- SECURITY/ORG.KOHSUKE.GROOVY.SANDBOX.IMPL.CHECKER.CHECKER.CHECKEDGETPROPERTY(CHECKER.JAVAI355) AT PLUGINCLASSLOADER FOR SCRIPT- SECURITY//ORG.KOHSUKE.GROOVY.SANDBOX.IMPL.CHECKER.CHECKEDGETPROPERTY(CHECKER.JAVA:355) AT PLUGINCLASSLOADER FOR WORKFLOW- CPS//COM.CLOUDBEES.GROOVY.CPS.SANDBOX.SANDBOXINVOKINVOKER-GETPROPERTY(SANDBOXINVOKER.JAVA;29) -->
+![](images/1789829781822-7e62384c-92ef-49ee-8b9e-c54ca2766697.png)
+
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1789829832218-2b2e5e62-7787-4b4d-b537-ab708917f2d1.png)
 

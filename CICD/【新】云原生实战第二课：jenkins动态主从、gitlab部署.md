@@ -34,11 +34,12 @@
 #### 1.3 基于jenkins+k8s动态创建slave pod
 针对传统jenkins一主多从的缺陷，我们将jenkins-master跑在k8s里提供故障恢复能力，并且配置动态创建jenkins-slave pod来解决上述2、3问题
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1753801806133-a065178a-f562-466e-8798-149740548953.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1753801806133-a065178a-f562-466e-8798-149740548953.png)
 
 那什么是动态podslave呢？
 
-需要知道：传统的主从，是静态的，会造成镜像余，单个镜像很大
+需要知道：传统的主从，是静态的，会造成镜像冗余，单个镜像很大
 
 例如针对不同的程序比如java、go
 
@@ -66,7 +67,7 @@
 
 5、推送到k8s：kubectl工具
 
-你会发现go的这个slave的镜像与java这个slave镜像需要安装的余部分太多会造成镜像很大没必要
+你会发现go的这个slave的镜像与java这个slave镜像需要安装的冗余部分太多会造成镜像很大没必要
 
 后续步骤安装k8s插件，就是为了动态创建pod，每次构建都会动态产生一个pod在里面运行slave，该slavepod里会启动多个容器用于流水线的不同阶段
 
@@ -74,7 +75,8 @@
 ##### 步骤1：安装k8s 插件（用来动态创建slave pod）
 我们需要安装 kubernetes 插件，点击 Manage Jenkins ->Manage Plugins ->Available ->Kubernetes 勾选安装即可。
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1756052864301-1871527a-fb14-4776-8799-9cd7a22e6911.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1756052864301-1871527a-fb14-4776-8799-9cd7a22e6911.png)
 
 ##### 步骤2：先制作一个用于jenkins链接k8s工具集群的凭据（注意是工具集群，jenkins的podslave肯定是要运行在工具集群里的嘛)
 ```plain
@@ -97,47 +99,63 @@ Enter Export Password: 在此输入密码
 Verifying - Enter Export Password: 在此输入密码
 ```
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1756053240467-8d9495af-474a-461e-ac4e-d9cadd55cc59.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1756053240467-8d9495af-474a-461e-ac4e-d9cadd55cc59.png)
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1756053259913-91c9c8d1-066d-48a0-919f-f3d574f5aa48.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1756053259913-91c9c8d1-066d-48a0-919f-f3d574f5aa48.png)
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1756053281718-b68cf10a-f83d-4499-8008-695f8dd2e484.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1756053281718-b68cf10a-f83d-4499-8008-695f8dd2e484.png)
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1756053625874-20e6b8ce-94d9-4d39-a248-15682ebefc42.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1756053625874-20e6b8ce-94d9-4d39-a248-15682ebefc42.png)
 
 ##### 步骤3：配置jenkins链接k8s集群
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1757819946433-6b95be4e-8753-43ea-a42a-d16250c213d1.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1757819946433-6b95be4e-8753-43ea-a42a-d16250c213d1.png)
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1757820391146-2ec48586-7cbb-4aee-903e-752cf75f32de.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1757820391146-2ec48586-7cbb-4aee-903e-752cf75f32de.png)
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1757820464214-eacb02aa-1139-4089-b4d3-8a3305ca67df.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1757820464214-eacb02aa-1139-4089-b4d3-8a3305ca67df.png)
 
 配置正确的话点连接测试，会显示链接成功
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1756054244152-c6745011-1960-403f-892f-5359dcb484a0.png)填写jenkins的地址，此处可以填写svc地址，因为工具都部署k8s工具集群中
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1756054244152-c6745011-1960-403f-892f-5359dcb484a0.png)填写jenkins的地址，此处可以填写svc地址，因为工具都部署在k8s工具集群中
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1756054408824-510e3c01-e7e8-4016-8a12-a9e8a85cdd19.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1756054408824-510e3c01-e7e8-4016-8a12-a9e8a85cdd19.png)
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1756054437715-b9f4343b-a034-4c60-bb02-8db8596f71c6.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1756054437715-b9f4343b-a034-4c60-bb02-8db8596f71c6.png)
+
+```yaml
+http://jenkins-nodeport.default.svc.cluster.local:7096
+jenkins-nodeport.default.svc.cluster.local:50000
+```
 
 ##### 步骤4：手动创建一个pod template
-配置PodTemplate，本质就是配置JenkinsSlave运行的Pod模板，为了能够让大家快速看到jenkinslave以一个
+配置PodTemplate，本质就是配置JenkinsSlave运行的Pod模板，为了能够让大家快速看到jenkins slave以一个
 
-pod的方式动态启动与销毁的效果，此处我们就先手动创建一个PodTemplate，你需要事先知道的时候，这个Pod Template在后面我们是可以通过流水线代码自定义的，不同的流水线可以定义自己单独的PodTemplate，完全不需要你在jenkins的web页面里手动创建一个固定死了的PodTemplate，我们此处手动创建只是会提前让你体验一
+pod的方式动态启动与销毁的效果，此处我们就先手动创建一个PodTemplate，你需要事先知道的是，这个Pod Template在后面我们是可以通过流水线代码自定义的，不同的流水线可以定义自己单独的PodTemplate，完全不需要你在jenkins的web页面里手动创建一个固定死了的PodTemplate，我们此处手动创建只是会提前让你体验一下动态创建podslave的效果而已，后期这个手动创建的固定死了的podtemplate都是可以删掉的。
 
-下动态床podslave的效果而已，后期这个手动创建的固定死了的podtemplate都是可以删掉的。
-
-手动创建一个PodTemplate如下图操作，这里尤其注意Labels/标签列表，它非常重要，后面执行Job会通过该值选中，然后我们这里先 jenkins/inbound-agent:jdk11这个镜像，这个镜像是在官方的jnlp镜像基础上定制的，加入了docker、kubectl等一些实用的工具
+手动创建一个PodTemplate如下图操作，这里尤其注意Labels/标签列表，它非常重要，后面执行Job会通过该值选中，然后我们这里先 jenkins/inbound-agent:jdk21这个镜像，这个镜像是在官方的jnlp镜像基础上定制的，加入了docker、kubectl等一些实用的工具
 
 再次强调：此处我们添加一个podTemplate只是为了用于案例演示（它的配置包括镜像啥的对我们来说都没啥用），后期我们会删掉该podTemplate，然后用pipeline脚本定制podTemplate、自己选择镜像，所以本小节手动创建一个PodTemplate这一小节的所有步骤都只是为了演示，对后续的实际应用均没啥用。
 
 系统配置->节点管理->ConfigureClouds->PodTemplates->添加Pod模板->PodTemplatesdetails
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1756057347035-8578ff4f-965e-4004-84f3-c574db4d062e.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1789273943867-6e4bc7a9-93bc-4086-8737-29ec474b7b42.jpeg)
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1756057479717-03e0719a-1752-4d9f-9a28-46a27b089852.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1756057479717-03e0719a-1752-4d9f-9a28-46a27b089852.png)
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1756058981614-495e06e1-ef55-41bf-9fad-23782b0d5ced.png)
+<!-- 这是一张图片，ocr 内容为：标签列表 标签列表 TEST1 -->
+![](images/1789273346035-a23314f1-b295-4fb1-a6c6-eac20bc1de14.png)
 
 知识点补充：docker in docker
 
@@ -147,7 +165,7 @@ docker in docker即在docker容器内运行docker指令
 通常不建议在docker容器内运行docker，但在有些场景和业务上，比如我们的CICD，如果agent运行在容器里，我们就是需要在该容器内使用docker命令，比如执行docker pull 拉取镜像，以及docker build构建镜像等操作，docker命令都是提交给了docker的守护进程，所以agent里是需要能够访问到docker守护进程的，如何访问呢？通过套接字文件即可，具体做法就是把宿主机中运行的docker服务的套接字文件映射到jenkins agent容器中即可
  
 2、如何实现docker in docker
-把宿主机中运行的docker服务的套接字文件docker.sock挂载jenkins agent容器中，实现共享宿主机的docker.socket，这就使得在容器中可以使用宿主机上的docker daemon。
+把宿主机中运行的docker服务的套接字文件docker.sock挂载到jenkins agent容器中，实现共享宿主机的docker.socket，这就使得在容器中可以使用宿主机上的docker daemon。
 如此，我们便可以在容器内部使用docker pull\push\build image\run等命令了（这些命令的执行都是在与宿主机上面的docker daemon通信）
  
 3、示例
@@ -209,18 +227,22 @@ subjects:
 
 然后在SlavePod配置的地方点击下面的高级，添加上对应的ServiceAccount即可：
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1756058080039-c2f98344-7750-418a-9062-dd97b7f4552a.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1756058080039-c2f98344-7750-418a-9062-dd97b7f4552a.png)
 
 ##### 步骤5：创建slave pod
 jenkins首页->新建任务->输入一个任务名称、选择Freestyleproject类型的任务
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1756058685999-8b670ee4-9526-427a-ac19-82e40de630e1.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1756058685999-8b670ee4-9526-427a-ac19-82e40de630e1.png)
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1756058833697-b61f58bd-525a-4c54-aed2-b13d9a074244.png)
+<!-- 这是一张图片，ocr 内容为：USE ALTERNATIVE CREDENTIAL THROTTLE BUILDS 丢弃旧的构建? 参数化构建过程 在必要的时候并发构建 限制项目的运行节点 标签表达式 ? 与我们当时创建POD TEMPLATE时的标签值是一样的 TEST1 LABEL XUSHENGLIN-TEST1 MATCHES NO N DES AND 1 CLOUD. PERMISSIONS OR OTHER RESTRICTIONS PROVIDED BY PLUGINS MAY FURTHER REDUCE THAT IST: 高级 -->
+![](images/1789275669365-73f9e7f4-dcd3-43d2-b7c9-f57c998b5700.jpeg)
 
 然后往下拉，在Build区域选择Execute shell
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1756059185262-4acd7b26-44bc-4e9a-9376-5956fa2865a5.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1756059185262-4acd7b26-44bc-4e9a-9376-5956fa2865a5.png)
 
 填入测试命令，点击保存
 
@@ -234,9 +256,8 @@ sleep 60
 
 然后点击构建，并查看控制台输出
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1756059554396-08410957-e9de-4b5c-82a5-9399b170e1f2.png)
-
-
+<!-- 这是一张图片，ocr 内容为：JENKINS 查找(CTRL+K) DASHBOARD > 所有>   XUSHENGLINJOB JOB 状态 修改记录 相关链接 工作空间 最近一次构建(#3),18天之前 立即构建 最近稳定构建(#3),18天之前 最近成功的构建(#3),18天之前 配置 最近失败的构建(#2),18天之前 最近未成功的构建(#2),18天之前 删除工程 最近完成的构建(#3),18天之前 重命名 构建历史 趋势 过滤构建... #3 不个 2025年7月20日上午6:2 #2 2025年7月20日 #1 2025年7月20日 上午6:05 -->
+![](images/1789276509631-cb21a275-37bd-4ad0-b618-c6d94acaa75f.jpeg)
 
 
 
@@ -605,7 +626,8 @@ spec:
 
 查看
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1757832029729-c26d7489-a612-45c0-846d-7c4e9f11fa80.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1757832029729-c26d7489-a612-45c0-846d-7c4e9f11fa80.png)
 
 强调：gitlab相关信息
 
@@ -665,7 +687,7 @@ data:
         }
         ready
         hosts { # 添加自定义解析
-          192.168.198.142 git.k8s.local
+          192.168.198.22 git.k8s.local
           fallthrough
         }
         kubernetes cluster.local in-addr.arpa ip6.arpa {
@@ -738,10 +760,10 @@ spec:
 [root@k8s-tools ~]# kubectl exec -it test-75bf4b886f-5j6d2 bash
 kubectl exec [POD] [COMMAND] is DEPRECATED and will be removed in a future version. Use kubectl kubectl exec [POD] -- [COMMAND] instead.
 [root@test-75bf4b886f-5j6d2 /]# ping git.k8s.local
-PING git.k8s.local (192.168.198.142) 56(84) bytes of data.
-64 bytes from git.k8s.local (192.168.198.142): icmp_seq=1 ttl=64 time=0.039 ms
-64 bytes from git.k8s.local (192.168.198.142): icmp_seq=2 ttl=64 time=0.087 ms
-64 bytes from git.k8s.local (192.168.198.142): icmp_seq=3 ttl=64 time=0.064 ms
+PING git.k8s.local (192.168.198.22) 56(84) bytes of data.
+64 bytes from git.k8s.local (192.168.198.22): icmp_seq=1 ttl=64 time=0.039 ms
+64 bytes from git.k8s.local (192.168.198.22): icmp_seq=2 ttl=64 time=0.087 ms
+64 bytes from git.k8s.local (192.168.198.22): icmp_seq=3 ttl=64 time=0.064 ms
 ^C
 --- git.k8s.local ping statistics ---
 3 packets transmitted, 3 received, 0% packet loss, time 2027ms
@@ -752,10 +774,10 @@ rtt min/avg/max/mdev = 0.039/0.063/0.087/0.020 ms
 在开发机上添加解析
 
 ```plain
-echo "192.168.198.142 git.k8s.local" >> /etc/hosts
+echo "192.168.198.22 git.k8s.local" >> /etc/hosts
 ```
 
-在要访问gitlab的web界面进行操作的主机添加hosts文件解析，或者干脆用ip地址192.168.198.142访问也行 比如我们要在windows主机以域名的方式访问gitlab的webui，那么配置HOSTS解析
+在要访问gitlab的web界面进行操作的主机添加hosts文件解析，或者干脆用ip地址192.168.198.22访问也行 比如我们要在windows主机以域名的方式访问gitlab的webui，那么配置HOSTS解析
 
 ```plain
 # 编辑文件，路径如下
@@ -763,13 +785,15 @@ C:\Windows\System32\drivers\etc\HOSTS
  
 # 
 添加解析
-192.168.198.142 git.k8s.local
+192.168.198.22 git.k8s.local
 ```
 
 #### 2.4 登录gitlab创建项目
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1757837158634-8563abb4-3b60-48d2-b2d7-df26241d3ccd.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1757837158634-8563abb4-3b60-48d2-b2d7-df26241d3ccd.png)
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1757837221387-f6b9de96-1f78-412d-9c9a-1ac89b145ff6.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1757837221387-f6b9de96-1f78-412d-9c9a-1ac89b145ff6.png)
 
 在开发机制作密钥对
 
@@ -803,20 +827,22 @@ ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDfkXE3/KZWPSsLi7bpuoybEYWm1kgeYIn3+W8zPwZn
 
 复制密钥到gitlab
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1757837897189-fe9e87da-0e9c-4915-a5d1-4dd8b18662a7.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1757837897189-fe9e87da-0e9c-4915-a5d1-4dd8b18662a7.png)
 
 开发机模拟更新代码
 
 ```plain
 yum install git -y
-git clone ssh://git@git.k8s.local:30022/root/redhat.git/redhat.git
+git clone ssh://git@git.k8s.local:30022/root/redhat.git
 
 # 配置全局用户名和邮箱（提交时标识身份）
 git config --global user.name "root"
 git config --global user.email "3876144474@qq.com"
 
 # 关联本地与远程仓库
-git remote add origin ssh://git@git.k8s.local:30022/root/redhat.git/redhat.git
+cd redhat
+git remote add origin ssh://git@git.k8s.local:30022/root/redhat.git
 git remote -v
 
  
@@ -836,7 +862,7 @@ import (
 
 func main() {
     fmt.Println("主分支。。。")
-    time.sleep(10000000 * time.Second)
+    time.Sleep(10000000 * time.Second)
 }
 
 # 工作区开发—>将修改后的文件添加到暂存区—>将暂存区的文件记录到版本库
@@ -871,7 +897,7 @@ import (
 
 func main() {
     fmt.Println("开发分支。。。")
-    time.sleep(10000000 * time.Second)
+    time.Sleep(10000000 * time.Second)
 }
 
 [root@localhost redhat]# git add .

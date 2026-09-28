@@ -3,6 +3,7 @@
 
 项目上线：产品提需求--->需求评审---》代码开发 --》 提交测试 --》 编译打包 --》 应用部署（本地开发：dev  test --》 pre --> prod)
 
+
 ---
 
 #### 课程目标
@@ -16,22 +17,47 @@
 #### 整体规划
 开发人员在本地merge完毕代码，push到代码仓库之后，如果是develop开发分支的代码则发布到k8s测试环境，如果是master分支的代码则发布到k8s生产环境。
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1757205617484-2d34cd46-6c2f-4e40-8b42-ced4630995b6.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1757205617484-2d34cd46-6c2f-4e40-8b42-ced4630995b6.png)
 
 | 角色 | 作用 | 配置 |
 | --- | --- | --- |
-| k8s集群-测试环境 | 测试环境，用于rd执行各种测试 | 2核2G |
-| k8s集群-生产环境 | 生产环境有两个重要的名称空<br/>间, 一个product代表真正的生产<br/>另外一个是staging代表预生产 | 2核2G |
-| k8s集群-工具集群 | 存放各种管理工具：<br/>1、安装jenkins<br/>2、安装gitlab<br/>3、安装harbor | 8核16G |
-| 开发机 | 安装git，编写代码后推送到<br/>gitlab里 | 1核512M |
-| nfs服务器 | 存储 | 2核2G |
+| k8s集群-测试环境 | 测试环境，用于在发布线上生产环境之前测试这次发布有无问题 | 2核2G内存10G磁盘 |
+| k8s集群-生产环境 | 生产环境也可以理解成线上环境 | 2核2G内存10G磁盘 |
+| k8s集群-工具集群 | 存放各种管理工具：<br/>1、安装jenkins<br/>2、安装gitlab<br/>3、安装harbor | 8核12G内存20G磁盘 |
+| 开发机 | 安装git，编写代码后推送到<br/>gitlab里 | 1核512M内存10G磁盘 |
+| nfs服务器 | 存储 | 2核2G内存10G磁盘 |
 
 
 ### **第一部分：K8S部署**
 #### 1.1 基础环境配置
+> 推荐系统选用 CentOS 7，如果选用 Rocky Linux 请参考：[Kubernetes 手动安装手册](https://ncloud.eagleslab.com/Kubernetes/%E6%89%8B%E5%8A%A8%E5%AE%89%E8%A3%85%E6%89%8B%E5%86%8C.html)
+
 配置静态ip地址
 
-略
+```plain
+[root@node02 ~]# cat /etc/sysconfig/network-scripts/ifcfg-ens33 
+TYPE="Ethernet"
+PROXY_METHOD="none"
+BROWSER_ONLY="no"
+BOOTPROTO="static"
+DEFROUTE="yes"
+IPV4_FAILURE_FATAL="no"
+IPV6INIT="yes"
+IPV6_AUTOCONF="yes"
+IPV6_DEFROUTE="yes"
+IPV6_FAILURE_FATAL="no"
+IPV6_ADDR_GEN_MODE="stable-privacy"
+NAME="ens33"
+UUID="67445ef2-85ef-4170-8acb-bc247c687f3d"
+DEVICE="ens33"
+ONBOOT="yes"
+IPADDR="192.168.198.32"          
+NETMASK="255.255.255.0"     
+GATEWAY="192.168.198.2"     
+DNS1="8.8.8.8" 
+
+```
 
 关闭NetworkManager
 
@@ -173,7 +199,7 @@ rpm -ivh *.rpm --nodeps --force
 添加阿里云docker仓库
 
 ```plain
- yum install yum-utils -y
+yum install yum-utils -y
 yum-config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
 ```
 
@@ -190,44 +216,38 @@ docker --version
 配置镜像源
 
 ```plain
-[root@node02 ~]#  cat /etc/docker/daemon.json 
-{ 
-  "exec-opts": ["native.cgroupdriver=systemd"],
-  "live-restore":true,
-  "registry-mirrors" : [
-    "https://docker.registry.cyou",
-    "https://docker-cf.registry.cyou",
-    "https://dockercf.jsdelivr.fyi",
-    "https://docker.jsdelivr.fyi",
-    "https://dockertest.jsdelivr.fyi",
-    "https://mirror.aliyuncs.com",
-    "https://dockerproxy.com",
-    "https://mirror.baidubce.com",
-    "https://docker.m.daocloud.io",
-    "https://docker.nju.edu.cn",
-    "https://docker.mirrors.sjtug.sjtu.edu.cn",
-    "https://docker.mirrors.ustc.edu.cn",
-    "https://mirror.iscas.ac.cn",
-    "https://docker.rainbond.cc",
-    "https://do.nark.eu.org",
-    "https://dc.j8.work",
-    "https://dockerproxy.com",
-    "https://gst6rzl9.mirror.aliyuncs.com",
-    "https://registry.docker-cn.com",
-    "http://hub-mirror.c.163.com",
-    "http://mirrors.ustc.edu.cn/",
-    "https://mirrors.tuna.tsinghua.edu.cn/",
-    "http://mirrors.sohu.com/"
-  ],
-  "insecure-registries" : [
-    "registry.docker-cn.com",
-    "docker.mirrors.ustc.edu.cn"
-  ],
-  "debug": true,
-  "experimental": false
-}
-systemctl restart docker
+
+   ```bash
+     # 1. 写入配置
+     cat > /etc/docker/daemon.json <<'EOF'
+     {
+       "exec-opts": ["native.cgroupdriver=systemd"],
+       "live-restore": true,
+       "registry-mirrors": [
+         "https://docker.m.daocloud.io",
+         "https://docker.1panel.live"
+       ],
+       "insecure-registries": [],
+       "debug": false,
+       "experimental": false
+     }
+     EOF
+
+     # 2. 重启 docker
+     systemctl restart docker
+
+     # 3. 验证服务状态
+     systemctl is-active docker
+
+     # 4. 确认镜像源生效
+     docker info | grep -A4 "Registry Mirrors"
+
+     # 5. 实测拉取
+     docker pull hello-world:latest
+   ```
 ```
+
+
 
 拉取镜像到本地
 
@@ -388,7 +408,7 @@ kubeadm init \
 --kubernetes-version=v1.18.1 \
 --service-cidr=10.96.0.0/12 \
 --pod-network-cidr=10.244.0.0/16 \
---apiserver-advertise-address=192.168.198.142 \
+--apiserver-advertise-address=192.168.198.22 \
 --ignore-preflight-errors=Swap
 
 –kubernetes-version: 用于指定k8s版本；
@@ -424,7 +444,7 @@ kubeadm join 192.168.198.140:6443 --token puqie3.du0y1m1dnvhz5k39 \
 
 node节点加到k8s集群中。
 
-注意保持好kubeadmjoin，后面会用到的。
+注意保持好kubeadm join，后面会用到的。
 
 如果初始化失败，请使用如下代码清除后重新初始化
 
@@ -453,239 +473,10 @@ kubectl taint nodes --all node-role.kubernetes.io/master-
 
 
 #### 1.3 配置网络插件
-##### flannel
-flannel.yaml
-
-```plain
----
-apiVersion: policy/v1beta1
-kind: PodSecurityPolicy
-metadata:
-  name: psp.flannel.unprivileged
-  annotations:
-    seccomp.security.alpha.kubernetes.io/allowedProfileNames: docker/default
-    seccomp.security.alpha.kubernetes.io/defaultProfileName: docker/default
-    apparmor.security.beta.kubernetes.io/allowedProfileNames: runtime/default
-    apparmor.security.beta.kubernetes.io/defaultProfileName: runtime/default
-spec:
-  privileged: false
-  volumes:
-  - configMap
-  - secret
-  - emptyDir
-  - hostPath
-  allowedHostPaths:
-  - pathPrefix: "/etc/cni/net.d"
-  - pathPrefix: "/etc/kube-flannel"
-  - pathPrefix: "/run/flannel"
-  readOnlyRootFilesystem: false
-  # Users and groups
-  runAsUser:
-    rule: RunAsAny
-  supplementalGroups:
-    rule: RunAsAny
-  fsGroup:
-    rule: RunAsAny
-  # Privilege Escalation
-  allowPrivilegeEscalation: false
-  defaultAllowPrivilegeEscalation: false
-  # Capabilities
-  allowedCapabilities: ['NET_ADMIN', 'NET_RAW']
-  defaultAddCapabilities: []
-  requiredDropCapabilities: []
-  # Host namespaces
-  hostPID: false
-  hostIPC: false
-  hostNetwork: true
-  hostPorts:
-  - min: 0
-    max: 65535
-  # SELinux
-  seLinux:
-    # SELinux is unused in CaaSP
-    rule: 'RunAsAny'
----
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: flannel
-rules:
-- apiGroups: ['extensions']
-  resources: ['podsecuritypolicies']
-  verbs: ['use']
-  resourceNames: ['psp.flannel.unprivileged']
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - get
-- apiGroups:
-  - ""
-  resources:
-  - nodes
-  verbs:
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - nodes/status
-  verbs:
-  - patch
----
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: flannel
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: flannel
-subjects:
-- kind: ServiceAccount
-  name: flannel
-  namespace: kube-system
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: flannel
-  namespace: kube-system
----
-kind: ConfigMap
-apiVersion: v1
-metadata:
-  name: kube-flannel-cfg
-  namespace: kube-system
-  labels:
-    tier: node
-    app: flannel
-data:
-  cni-conf.json: |
-    {
-      "name": "cbr0",
-      "cniVersion": "0.3.1",
-      "plugins": [
-        {
-          "type": "flannel",
-          "delegate": {
-            "hairpinMode": true,
-            "isDefaultGateway": true
-          }
-        },
-        {
-          "type": "portmap",
-          "capabilities": {
-            "portMappings": true
-          }
-        }
-      ]
-    }
-  net-conf.json: |
-    {
-      "Network": "10.244.0.0/16",
-      "Backend": {
-        "Type": "vxlan"
-      }
-    }
----
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: kube-flannel-ds
-  namespace: kube-system
-  labels:
-    tier: node
-    app: flannel
-spec:
-  selector:
-    matchLabels:
-      app: flannel
-  template:
-    metadata:
-      labels:
-        tier: node
-        app: flannel
-    spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: kubernetes.io/os
-                operator: In
-                values:
-                - linux
-      hostNetwork: true
-      priorityClassName: system-node-critical
-      tolerations:
-      - operator: Exists
-        effect: NoSchedule
-      serviceAccountName: flannel
-      initContainers:
-      - name: install-cni
-        image: registry.cn-hangzhou.aliyuncs.com/alvinos/flanned:v0.13.1-rc1
-        command:
-        - cp
-        args:
-        - -f
-        - /etc/kube-flannel/cni-conf.json
-        - /etc/cni/net.d/10-flannel.conflist
-        volumeMounts:
-        - name: cni
-          mountPath: /etc/cni/net.d
-        - name: flannel-cfg
-          mountPath: /etc/kube-flannel/
-      containers:
-      - name: kube-flannel
-        image: registry.cn-hangzhou.aliyuncs.com/alvinos/flanned:v0.13.1-rc1
-        command:
-        - /opt/bin/flanneld
-        args:
-        - --ip-masq
-        - --kube-subnet-mgr
-        resources:
-          requests:
-            cpu: "100m"
-            memory: "50Mi"
-          limits:
-            cpu: "100m"
-            memory: "50Mi"
-        securityContext:
-          privileged: false
-          capabilities:
-            add: ["NET_ADMIN", "NET_RAW"]
-        env:
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: POD_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        volumeMounts:
-        - name: run
-          mountPath: /run/flannel
-        - name: flannel-cfg
-          mountPath: /etc/kube-flannel/
-      volumes:
-      - name: run
-        hostPath:
-          path: /run/flannel
-      - name: cni
-        hostPath:
-          path: /etc/cni/net.d
-      - name: flannel-cfg
-        configMap:
-          name: kube-flannel-cfg
-```
-
 ##### calico
 calico 3.18搭配1.18版本的k8s
 
-
+也可以用flannel
 
 部署
 
@@ -730,7 +521,8 @@ kube-scheduler-master                      1/1     Running   4          45m
 | **StorageClass** | 定义存储供应的模板（自动创建 PV） | 集群管理员 |
 
 
-+ PV、PVC是K8S用来做存储管理的资源对象，它们让存储资源的使用变得_**可控**_，从而保障系统的稳定性、可靠性。StorageClass则是为了减少人工的工作量而去_**自动化创建**_PV的组件。所有Pod使用存储只有一个原则：_**先规划**_ → _**后申请**_ → _**再使用**_。![](https://i-blog.csdnimg.cn/blog_migrate/a9d100bbb5e57eab1a5d12056e501dbc.png)
++ PV、PVC是K8S用来做存储管理的资源对象，它们让存储资源的使用变得_**可控**_，从而保障系统的稳定性、可靠性。StorageClass则是为了减少人工的工作量而去_**自动化创建**_PV的组件。所有Pod使用存储只有一个原则：_**先规划**_ → _**后申请**_ → _**再使用**_。<!-- 这是一张图片，ocr 内容为： -->
+![](images/a9d100bbb5e57eab1a5d12056e501dbc.png)
 
 **参考链接：**[大白话说明白K8S的PV / PVC / StorageClass(理论+实践) - 知乎](https://zhuanlan.zhihu.com/p/655923057)
 
@@ -747,7 +539,7 @@ kubectl get storageclass
 ```bash
 # 在 nfs服务器上执行（非集群节点）
 yum install -y nfs-utils
-mkdir /data/nfs_share
+mkdir -p /data/nfs_share
 echo "/data/nfs_share *(rw,sync,no_root_squash,no_subtree_check)" > /etc/exports
 
 #/data/nfs_share：服务器上要共享的目录路径。
@@ -780,9 +572,10 @@ showmount -e nfs服务器ip
 #### **2.3 创建 StorageClass**
 ```yaml
 #安装helm
-#https://mirrors.huaweicloud.com/helm/v3.2.0/
-#https://blog.csdn.net/weixin_45653474/article/details/143230491
+cd /root && curl -fSL --connect-timeout 15 -o helm-v3.2.0-linux-amd64.tar.gz https://mirrors.huaweicloud.com/helm/v3.2.0/helm-v3.2.0-linux-amd64.tar.gz
+
 tar -zxvf helm包
+cd linux-amd64
 cp ./helm /usr/local/bin/helm
 helm version
 
@@ -794,10 +587,11 @@ helm repo update
 kubectl create ns nfs-provisioner
 
 # 3.3 使用Helm部署Provisioner. Provisioner是 Kubernetes 的一个外部存储动态供应器，用于通过现有的 NFS（网络文件系统）服务器为 Kubernetes 动态创建持久卷（Persistent Volume，PV）。它本身并不提供 NFS 服务，而是依赖已有的 NFS 服务器作为存储后端。
+curl -fSL -o nfs-subdir-external-provisioner-4.0.2.tgz https://ghfast.top/https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/releases/download/nfs-subdir-external-provisioner-4.0.2/nfs-subdir-external-provisioner-4.0.2.tgz
 helm upgrade --install nfs-provisioner \
   nfs-subdir-external-provisioner/nfs-subdir-external-provisioner \
   --namespace nfs-provisioner \
-  --set nfs.server=192.168.198.143 \
+  --set nfs.server=192.168.198.24 \
   --set nfs.path=/data/nfs_share \
   --set image.repository=swr.cn-north-4.myhuaweicloud.com/ddn-k8s/k8s.gcr.io/sig-storage/nfs-subdir-external-provisioner \
   --set image.tag=v4.0.2 \
@@ -805,13 +599,24 @@ helm upgrade --install nfs-provisioner \
   --set storageClass.onDelete="retain" \
   --set extraArgs.enableFixPath=true \
   --set storageClass.defaultClass=true
-
-# 关键参数说明：
-# nfs.server: NFS服务器IP
 # nfs.path: 共享目录路径
 # storageClass.name: 存储类名称
 # storageClass.defaultClass: 设为默认存储类
 # nfs-storageclass.yaml
+
+# 这个下不下来的化
+curl -fSL -o nfs-subdir-external-provisioner-4.0.2.tgz https://ghfast.top/https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/releases/download/nfs-subdir-external-provisioner-4.0.2/nfs-subdir-external-provisioner-4.0.2.tgz
+helm upgrade --install nfs-provisioner \
+  /root/nfs-subdir-external-provisioner-4.0.2.tgz   \
+  --namespace nfs-provisioner \
+  --set nfs.server=192.168.198.24 \
+  --set nfs.path=/data/nfs_share \
+  --set image.repository=swr.cn-north-4.myhuaweicloud.com/ddn-k8s/k8s.gcr.io/sig-storage/nfs-subdir-external-provisioner \
+  --set image.tag=v4.0.2 \
+  --set storageClass.name=nfs-storage \
+  --set storageClass.onDelete="retain" \
+  --set extraArgs.enableFixPath=true \
+  --set storageClass.defaultClass=true
 
 kubectl get pod -n nfs-provisioner -w
 # 预期输出：
@@ -865,7 +670,6 @@ kubectl get pv
 # pvc-3a8b9d1e-...                          20Gi       RWO            Delete           Bound    devops/jenkins-data-pvc   nfs-storage    20s
 ```
 
-![](images\image-20250301185628602.png)
 
 
 
@@ -875,9 +679,11 @@ kubectl get pv
 #### 3.1 deployment与statefulset对比
 
 
-![](https://i-blog.csdnimg.cn/blog_migrate/ad487159e0a2a6f4808883dd284d44ca.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/ad487159e0a2a6f4808883dd284d44ca.png)
 
-![](https://i-blog.csdnimg.cn/blog_migrate/7367f8070caa8b70d6069219cf3c80bd.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/7367f8070caa8b70d6069219cf3c80bd.png)
 
 **Deployment** 和 **StatefulSet** 核心特性的对比表格：
 
@@ -927,8 +733,8 @@ spec:
       - name: jenkins
         env:
         - name: JAVA_OPTS
-          value: "-Dhudson.security.csrf.GlobalCrumbIssuerConfiguration.DISABLE_CSRF_PROTECTION=true"
-        image: jenkins/jenkins:lts-jdk11  # 官方镜像（可以替换为阿里云镜像）
+          value: "-Dhudson.security.csrf.GlobalCrumbIssuerConfiguration.DISABLE_CSRF_PROTECTION=true -Dhudson.model.DirectoryBrowserSupport.CSP=\"sandbox allow-scripts allow-same-origin; default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; style-src 'self' 'unsafe-inline';\""
+        image: jenkins/jenkins:lts-jdk21  # 官方镜像（可以替换为阿里云镜像）
         ports:
         - containerPort: 8080
         - containerPort: 50000
@@ -968,7 +774,8 @@ spec:
 | **Headless** | 无 ClusterIP，直接返回 Pod IP（用于 StatefulSet 的 DNS 解析） | 数据库集群等有状态服务 |
 
 
-![](https://img2020.cnblogs.com/blog/1902657/202102/1902657-20210209180416277-174961.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1902657-20210209180416277-174961.png)
 
 ##### **1. ClusterIP（默认类型）**
 **核心特点**：  
@@ -1105,7 +912,8 @@ spec:
 ##### Ingress 的核心功能
 [几张图解释明白 Kubernetes Ingress - k8s-kb - 博客园](https://www.cnblogs.com/k8s/p/14395514.html)
 
-![](https://img2020.cnblogs.com/blog/1902657/202102/1902657-20210210194655036-108856525.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1902657-20210210194655036-108856525.png)
 
 + **外部流量入口**：基于 HTTP/HTTPS 协议的路由规则
 + 高级特性：
@@ -1143,7 +951,8 @@ kubernetes默认端口号范围是 30000-32767 ，如果期望值不是这个区
 3、编辑添加配置 service-node-port-range=1024-65535，如下图所示
 ```
 
-![](https://cdn.nlark.com/yuque/0/2025/png/27742364/1757239656387-12f6ba44-cdc9-400b-95b7-e922ad4df0fd.png)
+<!-- 这是一张图片，ocr 内容为： -->
+![](images/1757239656387-12f6ba44-cdc9-400b-95b7-e922ad4df0fd.png)
 
 应用配置：
 
@@ -1153,8 +962,10 @@ kubectl apply -f jenkins-statefulset.yaml
 kubectl apply -f jenkins-service.yaml
 #验证：
 
-kubectl get svc
-# 确认NodePort和Ingress规则生效
+[root@k8s-cicd-tools ~]# kubectl get svc
+NAME               TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)                         AGE
+jenkins-nodeport   NodePort    10.102.15.212   <none>        7096:7096/TCP,50000:50000/TCP   1s
+# 确认NodePort规则生效
 ```
 
 #### 3.4 初始化配置
