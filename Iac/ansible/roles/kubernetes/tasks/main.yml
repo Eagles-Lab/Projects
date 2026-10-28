@@ -1,0 +1,56 @@
+---
+- name: 配置 Kubernetes RPM 软件源
+  ansible.builtin.yum_repository:
+    name: iac-kubernetes
+    description: Kubernetes v1.36 (Alibaba Cloud mirror)
+    baseurl: "{{ kubernetes_repo_baseurl }}"
+    gpgkey: "{{ kubernetes_repo_baseurl }}repodata/repomd.xml.key"
+    gpgcheck: true
+    enabled: true
+    # 普通 dnf update 不升级这些组件；安装任务中再单独解除排除。
+    exclude:
+      - kubeadm
+      - kubelet
+      - kubectl
+      - cri-tools
+      - kubernetes-cni
+
+- name: 安装 kubeadm、kubelet、kubectl 和配套工具
+  ansible.builtin.dnf:
+    name:
+      - "kubeadm-{{ kubernetes_package_version }}"
+      - "kubelet-{{ kubernetes_package_version }}"
+      - "kubectl-{{ kubernetes_package_version }}"
+      - "cri-tools-{{ kubernetes_cri_tools_version }}"
+      - "kubernetes-cni-{{ kubernetes_cni_version }}"
+    state: present
+    update_cache: true
+    disable_excludes: iac-kubernetes
+
+- name: 配置 crictl 使用 containerd
+  ansible.builtin.copy:
+    dest: /etc/crictl.yaml
+    content: |
+      runtime-endpoint: {{ kubernetes_cri_endpoint }}
+      image-endpoint: {{ kubernetes_cri_endpoint }}
+      timeout: 10
+      debug: false
+    mode: '0644'
+
+# kubeadm init/join 会生成 kubelet 所需配置并启动服务。
+- name: 启用 kubelet 开机启动
+  ansible.builtin.systemd_service:
+    name: kubelet
+    enabled: true
+    daemon_reload: true
+  when: not ansible_check_mode
+
+- name: 检查 Kubernetes 组件版本
+  ansible.builtin.command: "{{ item }}"
+  loop:
+    - kubeadm version -o short
+    - kubelet --version
+    - kubectl version --client=true -o yaml
+    - crictl --version
+  changed_when: false
+  when: not ansible_check_mode

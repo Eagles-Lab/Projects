@@ -1,0 +1,113 @@
+name: iac-platform
+
+x-netbox: &netbox
+  image: m.daocloud.io/docker.io/netboxcommunity/netbox:v4.7.3-5.1.1
+  platform: ${NETBOX_PLATFORM:-}
+  restart: unless-stopped
+  environment:
+    DB_PASSWORD: ${DB_PASSWORD:?Run platformctl.py init first}
+    REDIS_PASSWORD: ${REDIS_PASSWORD}
+    SECRET_KEY: ${NETBOX_SECRET_KEY}
+    API_TOKEN_PEPPER: ${NETBOX_TOKEN_PEPPER}
+    ADMIN_PASSWORD: ${NETBOX_ADMIN_PASSWORD}
+    WRITE_TOKEN_KEY: ${NETBOX_WRITE_TOKEN_KEY}
+    WRITE_TOKEN_SECRET: ${NETBOX_WRITE_TOKEN_SECRET}
+    READ_TOKEN_KEY: ${NETBOX_READ_TOKEN_KEY}
+    READ_TOKEN_SECRET: ${NETBOX_READ_TOKEN_SECRET}
+    SKIP_SUPERUSER: "true"
+    GRANIAN_WORKERS: "1"
+  volumes:
+    - ./netbox/configuration.py:/etc/netbox/config/configuration.py:ro
+    - netbox-media:/opt/netbox/netbox/media
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: m.daocloud.io/docker.io/library/postgres:18-bookworm
+    restart: unless-stopped
+    # 轻量教学库无需 JIT；使用 Debian 版，避免本机 Alpine 版复杂查询崩溃。
+    command: [postgres, -c, jit=off]
+    environment:
+      POSTGRES_DB: netbox
+      POSTGRES_USER: netbox
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres-debian:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U netbox -d netbox"]
+      interval: 10s
+      retries: 10
+
+  redis:
+    image: m.daocloud.io/docker.io/valkey/valkey:9.1-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command: [sh, -c, 'exec valkey-server --appendonly yes --requirepass "$$REDIS_PASSWORD"']
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$REDIS_PASSWORD" valkey-cli ping | grep -q PONG']
+      interval: 10s
+
+  netbox:
+    <<: *netbox
+    ports:
+      - "127.0.0.1:8000:8080"
+    healthcheck:
+      test: [CMD, /opt/netbox/health.sh]
+      start_period: 120s
+      interval: 15s
+      retries: 30
+
+  netbox-worker:
+    <<: *netbox
+    command: [/opt/netbox/venv/bin/python, /opt/netbox/netbox/manage.py, rqworker]
+    depends_on:
+      netbox:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD-SHELL, "ps -eo args | grep -E '[m]anage.py rqworker' >/dev/null"]
+      interval: 10s
+
+  semaphore:
+    image: iac-semaphore:2.19.16-tf1.16.6
+    build: ./semaphore
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${SEMAPHORE_PORT:-3001}:3000"
+    environment:
+      SEMAPHORE_DB_DIALECT: sqlite
+      SEMAPHORE_DB_HOST: /var/lib/semaphore/database.sqlite
+      SEMAPHORE_ADMIN: admin
+      SEMAPHORE_ADMIN_PASSWORD: ${SEMAPHORE_ADMIN_PASSWORD}
+      SEMAPHORE_ACCESS_KEY_ENCRYPTION: ${SEMAPHORE_ACCESS_KEY_ENCRYPTION}
+      SEMAPHORE_MAX_PARALLEL_TASKS: "1"
+      SEMAPHORE_FORWARDED_ENV_VARS: '["NETBOX_API","NETBOX_TOKEN","NETBOX_WRITE_TOKEN","IAC_SSH_PRIVATE_KEY_FILE","ANSIBLE_CONFIG","ANSIBLE_INVENTORY_ANY_UNPARSED_IS_FAILED","TF_CLI_CONFIG_FILE","LANG"]'
+      NETBOX_API: http://netbox:8080
+      NETBOX_TOKEN: nbt_${NETBOX_READ_TOKEN_KEY}.${NETBOX_READ_TOKEN_SECRET}
+      NETBOX_WRITE_TOKEN: nbt_${NETBOX_WRITE_TOKEN_KEY}.${NETBOX_WRITE_TOKEN_SECRET}
+      IAC_SSH_PRIVATE_KEY_FILE: /run/iac-secrets/ecs_ssh_key
+      ANSIBLE_CONFIG: /workspace/ansible/ansible.cfg
+      ANSIBLE_INVENTORY_ANY_UNPARSED_IS_FAILED: "True"
+      TF_CLI_CONFIG_FILE: /workspace/platform/terraform.rc
+      LANG: C.UTF-8
+    volumes:
+      - ${IAC_PROJECT_DIR:?Run init first}:/workspace
+      - ./secrets:/run/iac-secrets:ro
+      - semaphore-config:/etc/semaphore
+      - semaphore-db:/var/lib/semaphore
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, http://localhost:3000/api/ping]
+      interval: 10s
+
+volumes:
+  postgres-debian:
+  redis:
+  netbox-media:
+  semaphore-config:
+  semaphore-db:

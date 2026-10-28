@@ -1,0 +1,78 @@
+---
+# 系统准备 → 控制面 → Calico → worker 加入 → 集群检查。
+- import_playbook: bootstrap.yml
+
+- name: 初始化 Kubernetes 控制面
+  hosts: control_plane
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+
+  roles:
+    - role: control_plane
+      tags: control_plane
+    - role: calico
+      tags: calico
+      when: not ansible_check_mode
+
+- name: 将工作节点加入 Kubernetes 集群
+  hosts: workers
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+
+  roles:
+    - role: worker
+      tags: worker
+      when: not ansible_check_mode
+
+- name: 检查 Kubernetes 集群交付结果
+  hosts: control_plane
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+  tags: verify
+
+  tasks:
+    - name: 等待 Inventory 中的每个节点 Ready
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig=/etc/kubernetes/admin.conf
+          - wait
+          - --for=condition=Ready
+          - "node/{{ hostvars[item]['node_hostname'] }}"
+          - --timeout=300s
+      loop: "{{ groups['control_plane'] + groups['workers'] }}"
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: 等待 Calico 和 CoreDNS 工作负载就绪
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig=/etc/kubernetes/admin.conf
+          - -n
+          - kube-system
+          - rollout
+          - status
+          - "{{ item }}"
+          - --timeout=300s
+      loop:
+        - daemonset/calico-node
+        - deployment/calico-kube-controllers
+        - deployment/coredns
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: 查看集群节点
+      ansible.builtin.command:
+        cmd: kubectl --kubeconfig=/etc/kubernetes/admin.conf get nodes -o wide
+      register: cluster_nodes
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: 显示集群节点
+      ansible.builtin.debug:
+        var: cluster_nodes.stdout_lines
+      when: not ansible_check_mode

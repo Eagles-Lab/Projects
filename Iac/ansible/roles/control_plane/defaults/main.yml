@@ -1,0 +1,12 @@
+---
+# 必须与 roles/kubernetes 中安装的 kubeadm、kubelet 版本一致。
+control_plane_kubernetes_version: "v1.36.5"
+control_plane_cluster_name: "iac-lab"
+
+# 使用国内仓库；已检查当前版本所需的 7 个镜像标签存在，完整拉取仍需实测。
+# 若改用其他仓库，还需同步调整 containerd_sandbox_image 并重新执行 containerd Role。
+control_plane_image_repository: "registry.cn-hangzhou.aliyuncs.com/google_containers"
+
+# Pod 网段后续与 Calico 保持一致；两者均不得与 VPC、交换机网段重叠。
+control_plane_pod_subnet: "192.168.0.0/16"
+control_plane_service_subnet: "10.96.0.0/12"

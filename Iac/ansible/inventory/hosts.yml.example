@@ -1,0 +1,23 @@
+---
+all:
+  children:
+    control_plane:
+      hosts:
+        cp1:
+          node_hostname: "iac-yourname-cp"
+          ansible_host: "REPLACE_WITH_CONTROL_PLANE_PUBLIC_IP"
+          private_ip: "172.20.1.10"
+          node_role: "control-plane"
+
+    workers:
+      hosts:
+        worker1:
+          node_hostname: "iac-yourname-worker"
+          ansible_host: "REPLACE_WITH_WORKER_PUBLIC_IP"
+          private_ip: "172.20.1.11"
+          node_role: "worker"
+
+  vars:
+    ansible_user: root
+    ansible_ssh_private_key_file: "REPLACE_WITH_ABSOLUTE_PEM_PATH"
+    ansible_python_interpreter: /usr/bin/python3

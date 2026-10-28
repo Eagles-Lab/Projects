@@ -1,0 +1,101 @@
+---
+- name: 检查 worker 加入集群的前置条件
+  ansible.builtin.assert:
+    that:
+      - groups['control_plane'] | length == 1
+      - private_ip is defined
+      - node_hostname is defined
+    fail_msg: 请先配置单控制面和 worker 的主机名、私网 IP，并完成节点基础初始化。
+
+- name: 检查 worker 是否已有 kubelet 集群配置
+  ansible.builtin.stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: worker_kubelet_conf
+
+- name: 首次将 worker 加入集群
+  when: not worker_kubelet_conf.stat.exists
+  block:
+    - name: 检查 worker 到控制面私网 API 的连通性
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[worker_control_plane]['private_ip'] }}"
+        port: 6443
+        timeout: 60
+
+    - name: 在控制面创建短期加入令牌并获取带 CA 校验的加入参数
+      ansible.builtin.command:
+        cmd: >-
+          kubeadm token create --kubeconfig=/etc/kubernetes/admin.conf
+          --ttl={{ worker_join_token_ttl }} --print-join-command
+      delegate_to: "{{ worker_control_plane }}"
+      register: worker_join_command
+      no_log: true
+
+    - name: 创建 worker 的 Kubernetes 配置目录
+      ansible.builtin.file:
+        path: /etc/kubernetes
+        state: directory
+        mode: '0755'
+
+    - name: 生成并校验 worker 加入配置
+      ansible.builtin.template:
+        src: kubeadm-join.yaml.j2
+        dest: /etc/kubernetes/kubeadm-join.yaml
+        mode: '0600'
+        validate: /usr/bin/kubeadm config validate --config %s
+      no_log: true
+      diff: false
+
+    - name: 执行 kubeadm join
+      ansible.builtin.command:
+        cmd: kubeadm join --config /etc/kubernetes/kubeadm-join.yaml
+        creates: /etc/kubernetes/kubelet.conf
+      no_log: true
+
+  always:
+    - name: 清理包含短期令牌的临时配置
+      ansible.builtin.file:
+        path: /etc/kubernetes/kubeadm-join.yaml
+        state: absent
+
+    - name: 撤销本次生成的加入令牌
+      ansible.builtin.command:
+        argv:
+          - kubeadm
+          - token
+          - delete
+          - "{{ worker_join_command.stdout | regex_search('[a-z0-9]{6}[.][a-z0-9]{16}') }}"
+          - --kubeconfig=/etc/kubernetes/admin.conf
+      delegate_to: "{{ worker_control_plane }}"
+      no_log: true
+      when:
+        - worker_join_command is defined
+        - worker_join_command.rc | default(1) == 0
+
+- name: 确认 worker 已在控制面注册
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - get
+      - node
+      - "{{ node_hostname }}"
+      - -o
+      - json
+  delegate_to: "{{ worker_control_plane }}"
+  register: worker_node
+  changed_when: false
+  until: worker_node.rc == 0
+  retries: 12
+  delay: 5
+
+- name: 为 worker 设置角色标签
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig=/etc/kubernetes/admin.conf
+      - label
+      - node
+      - "{{ node_hostname }}"
+      - node-role.kubernetes.io/worker=
+  delegate_to: "{{ worker_control_plane }}"
+  when: "'node-role.kubernetes.io/worker' not in (worker_node.stdout | from_json)['metadata'].get('labels', {})"

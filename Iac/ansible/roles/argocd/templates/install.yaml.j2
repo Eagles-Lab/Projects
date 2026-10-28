@@ -1,0 +1,5 @@
+{{ lookup('ansible.builtin.file', argocd_manifest_cache)
+   | replace('quay.io/argoproj/argocd:' ~ argocd_version, argocd_image)
+   | replace('ghcr.io/dexidp/dex:v2.45.1', argocd_dex_image)
+   | replace('public.ecr.aws/docker/library/redis:8.2.3-alpine', argocd_redis_image)
+   | replace('imagePullPolicy: Always', 'imagePullPolicy: IfNotPresent') }}

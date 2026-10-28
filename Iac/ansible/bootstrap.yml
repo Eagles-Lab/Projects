@@ -1,0 +1,18 @@
+---
+- name: 准备 Kubernetes 节点系统、容器运行时和组件
+  hosts: control_plane:workers
+  become: true
+  gather_facts: true
+  gather_subset:
+    - min
+    - network
+    - hardware
+  any_errors_fatal: true
+
+  roles:
+    - role: common
+      tags: common
+    - role: containerd
+      tags: containerd
+    - role: kubernetes
+      tags: kubernetes

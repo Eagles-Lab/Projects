@@ -1,0 +1,103 @@
+---
+- name: 检查系统版本
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Rocky'
+      - ansible_facts['distribution_major_version'] == '9'
+      - ansible_facts['architecture'] == 'x86_64'
+    fail_msg: 当前 Playbook 适用于 Rocky Linux 9 x86_64。
+
+- name: 收集服务状态
+  ansible.builtin.service_facts:
+
+- name: 关闭 firewalld 并禁用开机启动
+  ansible.builtin.systemd_service:
+    name: firewalld
+    state: stopped
+    enabled: false
+  when:
+    - "'firewalld.service' in ansible_facts['services']"
+    - ansible_facts['services']['firewalld.service']['status'] != 'not-found'
+
+- name: 安装基础工具
+  ansible.builtin.dnf:
+    name: "{{ common_packages }}"
+    state: present
+
+- name: 设置节点主机名
+  ansible.builtin.hostname:
+    name: "{{ node_hostname }}"
+    use: systemd
+
+- name: 写入集群私网主机名解析
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    marker: "# {mark} IAC KUBERNETES NODES"
+    block: |
+      {% for node in (groups['control_plane'] + groups['workers']) | sort %}
+      {{ hostvars[node]['private_ip'] }} {{ hostvars[node]['node_hostname'] }}
+      {% endfor %}
+
+- name: 启动并启用时间同步服务
+  ansible.builtin.systemd_service:
+    name: chronyd
+    enabled: true
+    state: started
+
+- name: 禁用 fstab 中的 swap 自动挂载
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^(\s*[^#\s]+\s+\S+\s+swap\s+.*)$'
+    replace: '# iac-disabled-swap: \1'
+    backup: true
+
+- name: 关闭当前已启用的 swap
+  ansible.builtin.command: swapoff -a
+  when: ansible_facts['swaptotal_mb'] | int > 0
+  changed_when: true
+
+- name: 将已启用的 SELinux 持久化为 permissive
+  ansible.builtin.replace:
+    path: /etc/selinux/config
+    regexp: '^SELINUX=.*$'
+    replace: SELINUX=permissive
+    backup: true
+  when: ansible_facts['selinux']['status'] == 'enabled'
+
+- name: 将当前 enforcing 模式切换到 permissive
+  ansible.builtin.command: setenforce 0
+  when: ansible_facts['selinux'].get('mode') == 'enforcing'
+  changed_when: true
+
+- name: 配置开机加载 Kubernetes 所需内核模块
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/iac-kubernetes.conf
+    content: "{{ common_kernel_modules | join('\n') }}\n"
+    mode: '0644'
+
+- name: 加载当前尚未加载的内核模块
+  ansible.builtin.command:
+    cmd: "modprobe {{ item }}"
+    creates: "/sys/module/{{ item }}"
+  loop: "{{ common_kernel_modules }}"
+
+- name: 持久化 Kubernetes 内核参数
+  ansible.builtin.template:
+    src: kubernetes-sysctl.conf.j2
+    dest: /etc/sysctl.d/99-iac-kubernetes.conf
+    mode: '0644'
+  notify: 应用 Kubernetes 内核参数
+
+- name: 防止 NetworkManager 管理 Calico 虚拟接口
+  ansible.builtin.copy:
+    dest: /etc/NetworkManager/conf.d/90-iac-calico.conf
+    content: |
+      # Managed by Ansible: Calico owns these virtual interfaces.
+      [keyfile]
+      unmanaged-devices=interface-name:cali*;interface-name:tunl*;interface-name:vxlan.calico;interface-name:vxlan-v6.calico;interface-name:wireguard.cali;interface-name:wg-v6.cali
+    mode: '0644'
+  when: "'NetworkManager.service' in ansible_facts['services']"
+  notify: 重载 NetworkManager 配置
+
+- name: 应用本轮配置变更
+  ansible.builtin.meta: flush_handlers

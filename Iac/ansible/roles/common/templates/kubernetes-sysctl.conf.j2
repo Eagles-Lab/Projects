@@ -1,0 +1,4 @@
+# Managed by Ansible. Kubernetes node network settings.
+{% for name, value in common_sysctl.items() %}
+{{ name }} = {{ value }}
+{% endfor %}

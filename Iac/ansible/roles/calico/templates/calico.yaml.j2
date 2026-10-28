@@ -1,0 +1,1 @@
+{{ lookup('ansible.builtin.file', calico_manifest_cache) | iac_calico_manifest(calico_image_repository, calico_version, control_plane_pod_subnet) }}

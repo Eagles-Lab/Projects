@@ -1,0 +1,14 @@
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: JoinConfiguration
+discovery:
+  bootstrapToken:
+    apiServerEndpoint: "{{ hostvars[worker_control_plane]['private_ip'] }}:6443"
+    token: "{{ worker_join_command.stdout | regex_search('[a-z0-9]{6}[.][a-z0-9]{16}') }}"
+    caCertHashes:
+      - "{{ worker_join_command.stdout | regex_search('sha256:[a-f0-9]{64}') }}"
+nodeRegistration:
+  name: "{{ node_hostname }}"
+  criSocket: "unix:///run/containerd/containerd.sock"
+  kubeletExtraArgs:
+    - name: node-ip
+      value: "{{ private_ip }}"

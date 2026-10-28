@@ -1,0 +1,66 @@
+---
+- name: 确认已初始化集群的 Pod 网段与本次配置一致
+  ansible.builtin.command:
+    cmd: kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system get configmap kubeadm-config -o json
+  register: calico_kubeadm_config
+  changed_when: false
+
+- name: 检查 Pod 网段
+  ansible.builtin.assert:
+    that:
+      - ((calico_kubeadm_config.stdout | from_json)['data']['ClusterConfiguration'] | from_yaml)['networking']['podSubnet'] == control_plane_pod_subnet
+    fail_msg: 已有集群的 Pod 网段与变量不一致，请先核对；不要直接覆盖已有集群的网段。
+
+- name: 在本地 PC 创建清单缓存目录
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/.cache"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  become: false
+
+- name: 在本地 PC 下载并校验固定版本的官方 Calico 清单
+  ansible.builtin.get_url:
+    url: "{{ calico_manifest_url }}"
+    dest: "{{ calico_manifest_cache }}"
+    checksum: "{{ calico_manifest_checksum }}"
+    mode: '0644'
+    timeout: 60
+  delegate_to: localhost
+  become: false
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+
+- name: 渲染国内镜像和 VXLAN 配置到控制面
+  ansible.builtin.template:
+    src: calico.yaml.j2
+    dest: /etc/kubernetes/calico.yaml
+    mode: '0644'
+
+- name: 安装清单差异比较工具
+  ansible.builtin.dnf:
+    name: diffutils
+    state: present
+
+- name: 检查 Calico 声明与集群资源的差异
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --kubeconfig=/etc/kubernetes/admin.conf diff
+      --server-side --field-manager=iac-ansible -f /etc/kubernetes/calico.yaml
+  register: calico_diff
+  changed_when: false
+  failed_when: calico_diff.rc not in [0, 1]
+
+- name: 应用 Calico 清单
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --kubeconfig=/etc/kubernetes/admin.conf apply
+      --server-side --field-manager=iac-ansible -f /etc/kubernetes/calico.yaml
+  when: calico_diff.rc == 1
+
+- name: 等待控制面上的 Calico 网络插件就绪
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system
+      rollout status daemonset/calico-node --timeout=300s
+  changed_when: false

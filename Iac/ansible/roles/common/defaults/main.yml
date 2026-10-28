@@ -1,0 +1,22 @@
+---
+# 基础镜像可能已包含其中一部分；state: present 只补齐缺失的软件包。
+common_packages:
+  - curl
+  - jq
+  - tar
+  - chrony
+  - iproute
+  - iproute-tc
+  - conntrack-tools
+  - socat
+  - ethtool
+  - kmod
+
+common_kernel_modules:
+  - overlay
+  - br_netfilter
+
+common_sysctl:
+  net.ipv4.ip_forward: 1
+  net.bridge.bridge-nf-call-iptables: 1
+  net.bridge.bridge-nf-call-ip6tables: 1

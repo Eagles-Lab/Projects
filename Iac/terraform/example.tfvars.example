@@ -1,0 +1,12 @@
+# 复制为 local.tfvars，填入自己账号中的实际值。
+# local.tfvars 已被 .gitignore 排除；不要在这里写 AccessKey。
+region              = "cn-hangzhou"
+zone_id             = "cn-hangzhou-REPLACE"
+image_id            = "m-REPLACE_WITH_YOUR_IMAGE_ID"
+owner               = "yezi"
+ssh_cidr            = "203.0.113.10/32"
+ssh_key_pair_name   = "REPLACE_WITH_EXISTING_KEY_PAIR_NAME"
+
+# 若目标可用区的规格库存不同，再覆盖默认值：
+# control_plane_instance_type = "ecs.e-c1m2.large"
+# worker_instance_type        = "ecs.e-c1m1.large"

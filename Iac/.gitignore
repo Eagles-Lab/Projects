@@ -1,0 +1,48 @@
+# 本地环境与凭据
+/.local-backups/
+/课程资料/
+.DS_Store
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+secrets/
+credentials/
+agents.md
+# Terraform：保留并提交 .terraform.lock.hcl，不提交 State 或本地变量
+/terraform/credentials.auto.tfvars
+**/.terraform/
+*tfstate*
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Packer 构建产物与缓存
+packer/local.pkrvars.hcl
+**/packer_cache/
+**/output-*/
+*.qcow2
+*.vhd
+*.vmdk
+*.raw
+*.iso
+
+# Ansible 与通用临时文件
+ansible/inventory/hosts.yml
+ansible/.venv/
+ansible/.cache/
+__pycache__/
+*.retry
+*.log
+tmp/
+.tmp/

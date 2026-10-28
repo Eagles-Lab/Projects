@@ -1,0 +1,31 @@
+---
+# Semaphore 使用本清单；原 hosts.yml 和命令行默认配置保持不变。
+plugin: netbox.netbox.nb_inventory
+# API 地址直接读取插件支持的 NETBOX_API 环境变量。
+token:
+  type: Bearer
+  value: "{{ lookup('env', 'NETBOX_TOKEN') }}"
+validate_certs: true
+strict: true
+query_filters:
+  - tag: iac-course
+vm_query_filters:
+  - status: active
+  - status: staged
+group_by: []
+rename_variables:
+  - pattern: '^serial$'
+    repl: netbox_serial
+  - pattern: '^tags$'
+    repl: netbox_tags
+groups:
+  control_plane: "role.slug == 'control-plane'"
+  workers: "role.slug == 'worker'"
+compose:
+  ansible_host: primary_ip4.address.split('/')[0]
+  node_hostname: name
+  private_ip: custom_fields.private_ip
+  node_role: role.slug
+  ansible_user: "'root'"
+  ansible_python_interpreter: "'/usr/bin/python3'"
+  ansible_ssh_private_key_file: "lookup('env', 'IAC_SSH_PRIVATE_KEY_FILE') | default('/run/iac-secrets/ecs_ssh_key', true)"

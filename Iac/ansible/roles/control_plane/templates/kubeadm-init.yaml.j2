@@ -1,0 +1,31 @@
+# Managed by Ansible. 修改本文件不会自动升级或重新初始化已有集群。
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: InitConfiguration
+localAPIEndpoint:
+  advertiseAddress: "{{ private_ip }}"
+  bindPort: 6443
+nodeRegistration:
+  name: "{{ node_hostname }}"
+  criSocket: "unix:///run/containerd/containerd.sock"
+  kubeletExtraArgs:
+    - name: node-ip
+      value: "{{ private_ip }}"
+---
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: ClusterConfiguration
+kubernetesVersion: "{{ control_plane_kubernetes_version }}"
+clusterName: "{{ control_plane_cluster_name }}"
+imageRepository: "{{ control_plane_image_repository }}"
+controlPlaneEndpoint: "{{ private_ip }}:6443"
+networking:
+  podSubnet: "{{ control_plane_pod_subnet }}"
+  serviceSubnet: "{{ control_plane_service_subnet }}"
+  dnsDomain: cluster.local
+apiServer:
+  certSANs:
+    - "{{ private_ip }}"
+    - "{{ node_hostname }}"
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+cgroupDriver: systemd

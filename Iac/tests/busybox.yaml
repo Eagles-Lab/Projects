@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox
+  namespace: default
+  labels:
+    app: busybox
+spec:
+  containers:
+    - name: busybox
+      image: m.daocloud.io/docker.io/library/busybox:1.37.0
+      imagePullPolicy: IfNotPresent
+      command: ["sleep", "86400"]
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 100m
+          memory: 64Mi
+  restartPolicy: Always

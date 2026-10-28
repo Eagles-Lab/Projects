@@ -1,0 +1,11 @@
+---
+argocd_version: "v3.5.6"
+argocd_manifest_url: "https://raw.githubusercontent.com/argoproj/argo-cd/{{ argocd_version }}/manifests/install.yaml"
+argocd_manifest_checksum: "sha256:846c644bc81ce5557dd9048757a9c7353378f25c5eb811c77d32a9e907823599"
+argocd_manifest_cache: "{{ playbook_dir }}/.cache/argocd-{{ argocd_version }}.yaml"
+
+# 已核实这三个固定标签包含 linux/amd64；实际拉取与部署需在 ECS 验证。
+argocd_image: "m.daocloud.io/quay.io/argoproj/argocd:{{ argocd_version }}"
+argocd_dex_image: "m.daocloud.io/ghcr.io/dexidp/dex:v2.45.1"
+argocd_redis_image: "m.daocloud.io/docker.io/library/redis:8.2.3-alpine"
+argocd_rollout_timeout: "600s"

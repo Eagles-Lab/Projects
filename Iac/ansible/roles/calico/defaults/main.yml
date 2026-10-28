@@ -1,0 +1,10 @@
+---
+calico_version: "v3.33.0"
+# 国内 Docker Hub 代理；三个镜像均已核对 linux/amd64 及清单摘要，
+# 与原 quay.io 镜像一致。实际拉取速度仍取决于 ECS 到仓库的网络。
+calico_image_repository: "dockerproxy.net/calico"
+
+# 官方 v3.33.0 对应的固定提交，首次由本地 PC 下载并校验，不要求 ECS 访问 GitHub。
+calico_manifest_url: "https://raw.githubusercontent.com/projectcalico/calico/fbaa371111636a37ecc82625fce8453064a7fff2/manifests/calico.yaml"
+calico_manifest_checksum: "sha256:2de8f47595fb9c41b3f47d7b767a1f8e72ecf84057af834738ff12689a234da5"
+calico_manifest_cache: "{{ playbook_dir }}/.cache/calico-{{ calico_version }}.yaml"

@@ -1,0 +1,3 @@
+---
+worker_control_plane: "{{ groups['control_plane'] | first }}"
+worker_join_token_ttl: "15m"

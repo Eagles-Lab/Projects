@@ -1,0 +1,39 @@
+---
+# Kubernetes 交付成功后单独执行，不重复创建集群。
+- name: 检查实验主机清单
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  any_errors_fatal: true
+  tags: always
+
+  tasks:
+    - name: 确认 Inventory 包含控制面和 worker
+      ansible.builtin.assert:
+        that:
+          - groups.get('control_plane', []) | length == 1
+          - groups.get('workers', []) | length >= 1
+        fail_msg: 请先创建集群并确认 Inventory；需要一个控制面和至少一个 worker。
+
+- name: 检查节点 SSH 和 Python 连通性
+  hosts: control_plane:workers
+  become: false
+  gather_facts: false
+  any_errors_fatal: true
+  tags: always
+
+  tasks:
+    - name: 测试连接（私钥无效或文件缺失时在此报错）
+      ansible.builtin.ping:
+
+- name: 安装 Argo CD
+  hosts: control_plane
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+
+  roles:
+    - role: argocd
+      tags: argocd
+      when: not ansible_check_mode

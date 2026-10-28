@@ -1,0 +1,62 @@
+---
+- name: 配置 containerd RPM 软件源
+  ansible.builtin.yum_repository:
+    name: iac-containerd
+    description: containerd packages for EL9 (Alibaba Cloud mirror)
+    baseurl: "{{ containerd_repo_baseurl }}"
+    gpgkey: "{{ containerd_repo_gpgkey }}"
+    gpgcheck: true
+    enabled: true
+    includepkgs:
+      - containerd.io
+
+- name: 安装 containerd 和包内自带的 runc
+  ansible.builtin.dnf:
+    name: "containerd.io-{{ containerd_package_version }}"
+    state: present
+    update_cache: true
+  notify: 重启 containerd
+
+- name: 创建 containerd 和 CNI 配置目录
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - /etc/containerd
+    - /etc/cni/net.d
+    - /opt/cni/bin
+
+- name: 配置 CRI 和 systemd cgroup
+  ansible.builtin.template:
+    src: config.toml.j2
+    dest: /etc/containerd/config.toml
+    mode: '0644'
+    backup: true
+    validate: /usr/bin/containerd --config %s config dump
+  notify: 重启 containerd
+
+- name: 启动 containerd 并启用开机启动
+  ansible.builtin.systemd_service:
+    name: containerd
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: not ansible_check_mode
+
+- name: 应用 containerd 配置变更
+  ansible.builtin.meta: flush_handlers
+
+- name: 检查 CRI 插件是否正常加载
+  ansible.builtin.command: ctr plugins ls id==cri
+  register: containerd_cri_result
+  changed_when: false
+  retries: 5
+  delay: 2
+  until: containerd_cri_result.rc == 0 and 'ok' in containerd_cri_result.stdout
+  when: not ansible_check_mode
+
+- name: 检查 runc 是否可用
+  ansible.builtin.command: runc --version
+  changed_when: false
+  when: not ansible_check_mode

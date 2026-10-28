@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitops-demo
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://gitee.com/AllenWang226/argocd-repo-server.git
+    targetRevision: main
+    path: apps/demo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gitops-demo
+  # 第一轮先手动 Sync；验证成功后再学习自动同步与自愈。
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

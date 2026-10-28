@@ -1,0 +1,7 @@
+---
+- name: 重启 containerd
+  ansible.builtin.systemd_service:
+    name: containerd
+    state: restarted
+    daemon_reload: true
+  when: not ansible_check_mode

@@ -1,0 +1,98 @@
+---
+- name: 检查所有实验节点已 Ready
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --kubeconfig=/etc/kubernetes/admin.conf wait
+      --for=condition=Ready node/{{ hostvars[item]['node_hostname'] }} --timeout=30s
+  loop: "{{ groups['control_plane'] + groups['workers'] }}"
+  changed_when: false
+
+- name: 检查 Calico 和 CoreDNS 已就绪
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --kubeconfig=/etc/kubernetes/admin.conf -n kube-system
+      rollout status {{ item }} --timeout=30s
+  loop:
+    - daemonset/calico-node
+    - deployment/calico-kube-controllers
+    - deployment/coredns
+  changed_when: false
+
+- name: 创建本地清单缓存目录
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/.cache"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  become: false
+
+- name: 在执行端下载并校验固定版本官方清单
+  ansible.builtin.get_url:
+    url: "{{ argocd_manifest_url }}"
+    dest: "{{ argocd_manifest_cache }}"
+    checksum: "{{ argocd_manifest_checksum }}"
+    mode: '0644'
+    timeout: 60
+  delegate_to: localhost
+  become: false
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+
+- name: 将使用国内镜像的清单写入控制节点
+  ansible.builtin.template:
+    src: install.yaml.j2
+    dest: /etc/kubernetes/argocd.yaml
+    mode: '0644'
+
+- name: 查看 Argo CD 命名空间是否存在
+  ansible.builtin.command:
+    cmd: kubectl --kubeconfig=/etc/kubernetes/admin.conf get namespace argocd --ignore-not-found -o name
+  register: argocd_namespace
+  changed_when: false
+
+- name: 创建 Argo CD 命名空间
+  ansible.builtin.command:
+    cmd: kubectl --kubeconfig=/etc/kubernetes/admin.conf create namespace argocd
+  when: argocd_namespace.stdout | length == 0
+
+- name: 安装清单差异比较工具
+  ansible.builtin.dnf:
+    name: diffutils
+    state: present
+
+- name: 比较 Argo CD 清单与集群配置
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --kubeconfig=/etc/kubernetes/admin.conf -n argocd diff
+      --server-side --field-manager=iac-ansible -f /etc/kubernetes/argocd.yaml
+  register: argocd_diff
+  changed_when: false
+  failed_when: argocd_diff.rc not in [0, 1]
+
+- name: 应用 Argo CD 清单
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --kubeconfig=/etc/kubernetes/admin.conf -n argocd apply
+      --server-side --field-manager=iac-ansible -f /etc/kubernetes/argocd.yaml
+  when: argocd_diff.rc == 1
+
+- name: 等待 Argo CD 各组件就绪
+  ansible.builtin.command:
+    cmd: >-
+      kubectl --kubeconfig=/etc/kubernetes/admin.conf -n argocd
+      rollout status {{ item }} --timeout={{ argocd_rollout_timeout }}
+  loop:
+    - deployment/argocd-redis
+    - deployment/argocd-repo-server
+    - deployment/argocd-dex-server
+    - deployment/argocd-server
+    - deployment/argocd-applicationset-controller
+    - deployment/argocd-notifications-controller
+    - statefulset/argocd-application-controller
+  changed_when: false
+
+- name: 显示后续访问方式
+  ansible.builtin.debug:
+    msg: >-
+      Argo CD 已就绪，未连接 Git 仓库。登录用户为 admin；
+      请按项目 README 的 SSH 隧道步骤访问页面并获取初始密码。

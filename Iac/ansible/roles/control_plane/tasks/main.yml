@@ -1,0 +1,81 @@
+---
+- name: 确认当前教学拓扑只有一个控制面
+  ansible.builtin.assert:
+    that:
+      - groups['control_plane'] | length == 1
+      - private_ip is defined
+      - node_hostname is defined
+    fail_msg: 请在 Inventory 中配置一个 control_plane 节点，并填写 private_ip 和 node_hostname。
+
+- name: 检查控制面是否已有初始化配置
+  ansible.builtin.stat:
+    path: /etc/kubernetes/admin.conf
+  register: control_plane_admin_conf
+
+- name: 创建 Kubernetes 配置目录
+  ansible.builtin.file:
+    path: /etc/kubernetes
+    state: directory
+    mode: '0755'
+
+- name: 生成并校验 kubeadm 初始化配置
+  ansible.builtin.template:
+    src: kubeadm-init.yaml.j2
+    dest: /etc/kubernetes/kubeadm-init.yaml
+    mode: '0600'
+    validate: /usr/bin/kubeadm config validate --config %s
+
+- name: 提前拉取 Kubernetes 控制面及配套镜像
+  ansible.builtin.command:
+    cmd: kubeadm config images pull --config /etc/kubernetes/kubeadm-init.yaml
+  when:
+    - not control_plane_admin_conf.stat.exists
+    - not ansible_check_mode
+
+- name: 首次初始化 Kubernetes 控制面
+  ansible.builtin.command:
+    cmd: kubeadm init --config /etc/kubernetes/kubeadm-init.yaml
+    creates: /etc/kubernetes/admin.conf
+  # kubeadm 输出包含节点加入令牌，不写入 Ansible 日志。
+  no_log: true
+  when: not ansible_check_mode
+
+- name: 创建 root 的 kubectl 配置目录
+  ansible.builtin.file:
+    path: /root/.kube
+    state: directory
+    mode: '0700'
+
+- name: 为控制面 root 用户配置 kubectl
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    remote_src: true
+    mode: '0600'
+  when: not ansible_check_mode
+
+- name: 等待 Kubernetes API 就绪
+  ansible.builtin.command:
+    cmd: kubectl --kubeconfig=/etc/kubernetes/admin.conf get --raw=/readyz
+  register: control_plane_api_ready
+  changed_when: false
+  until:
+    - control_plane_api_ready.rc == 0
+    - control_plane_api_ready.stdout | trim == 'ok'
+  retries: 30
+  delay: 5
+  when: not ansible_check_mode
+
+- name: 查看当前节点状态
+  ansible.builtin.command:
+    cmd: kubectl --kubeconfig=/etc/kubernetes/admin.conf get nodes -o wide
+  register: control_plane_nodes
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: 显示节点状态和后续步骤
+  ansible.builtin.debug:
+    msg:
+      - "{{ control_plane_nodes.stdout_lines }}"
+      - "控制面阶段完成。若尚未安装 Calico，此时可能为 NotReady；总入口接下来执行 Calico 和 worker 阶段。"
+  when: not ansible_check_mode

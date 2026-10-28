@@ -1,0 +1,9 @@
+---
+- name: 应用 Kubernetes 内核参数
+  ansible.builtin.command: sysctl -p /etc/sysctl.d/99-iac-kubernetes.conf
+  changed_when: true
+
+- name: 重载 NetworkManager 配置
+  ansible.builtin.command: nmcli general reload
+  when: ansible_facts['services'].get('NetworkManager.service', {}).get('state') == 'running'
+  changed_when: true
