@@ -72,24 +72,24 @@ def sync(nodes, state, api):
         if vm and not any(t["slug"] == "iac-course" for t in vm["tags"]):
             raise ValueError("同名 VM 不是本课程资产，拒绝覆盖：" + name)
         same_instance = vm and vm["custom_fields"].get("cloud_instance_id") == node["instance_id"]
-        if state in ("ready", "deleted") and not same_instance:
+        if state in ("active", "offline") and not same_instance:
             raise ValueError("资产实例 ID 不匹配，拒绝回写：" + name)
-        lifecycle = state
-        if state == "created" and same_instance and vm["custom_fields"].get("lifecycle") == "ready":
-            lifecycle = "ready"
+        status = state
+        if state == "staged" and same_instance and vm["status"]["value"] == "active":
+            status = "active"
         fields = {
             "name": name, "cluster": cluster,
             "role": api.require("dcim/device-roles/", slug=node["role"]),
-            "status": {"created": "staged", "ready": "active", "deleted": "offline"}[lifecycle],
+            "status": status,
             "tags": sorted(set([tag] + ([t["id"] for t in vm["tags"]] if vm else []))),
-            "custom_fields": {**(vm.get("custom_fields", {}) if vm else {}), "private_ip": node["private_ip"],
-                              "cloud_instance_id": node["instance_id"], "lifecycle": lifecycle},
+            "custom_fields": {"private_ip": node["private_ip"],
+                              "cloud_instance_id": node["instance_id"]},
         }
         if vm:
             vm = api.request("virtualization/virtual-machines/%s/" % vm["id"], fields, "PATCH")
         else:
             vm = api.request("virtualization/virtual-machines/", fields)
-        if state != "deleted":
+        if state != "offline":
             interface = api.find("virtualization/interfaces/", virtual_machine_id=vm["id"], name="management")
             if not interface:
                 interface = api.request("virtualization/interfaces/", {"virtual_machine": vm["id"], "name": "management"})
@@ -107,13 +107,13 @@ def sync(nodes, state, api):
             else:
                 ip = api.request("ipam/ip-addresses/", assignment)
             api.request("virtualization/virtual-machines/%s/" % vm["id"], {"primary_ip4": ip["id"]}, "PATCH")
-        print("%s -> %s" % (name, lifecycle))
+        print("%s -> %s" % (name, status))
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--nodes-file", type=Path)
-    parser.add_argument("--status", choices=("created", "ready", "deleted"), default="created")
+    parser.add_argument("--status", choices=("staged", "active", "offline"), default="staged")
     args = parser.parse_args()
     if args.nodes_file:
         nodes = json.loads(args.nodes_file.read_text())

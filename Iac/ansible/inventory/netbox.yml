@@ -13,14 +13,14 @@ vm_query_filters:
   - status: active
   - status: staged
 group_by: []
+groups:
+  control_plane: "role.slug == 'control-plane'"
+  workers: "role.slug == 'worker'"
 rename_variables:
   - pattern: '^serial$'
     repl: netbox_serial
   - pattern: '^tags$'
     repl: netbox_tags
-groups:
-  control_plane: "role.slug == 'control-plane'"
-  workers: "role.slug == 'worker'"
 compose:
   ansible_host: primary_ip4.address.split('/')[0]
   node_hostname: name

@@ -28,7 +28,7 @@ case "$action" in
       terraform output -json | python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin).get("nodes", {}).get("value", {})))' > "$nodes_file"
       terraform destroy -input=false -auto-approve -var-file=local.tfvars
       if python3 -c 'import json,sys; sys.exit(not bool(json.load(open(sys.argv[1]))))' "$nodes_file"; then
-        python3 ../platform/sync_netbox.py --nodes-file "$nodes_file" --status deleted
+        python3 ../platform/sync_netbox.py --nodes-file "$nodes_file" --status offline
       else
         echo 'State 中没有 nodes 输出，无需回写 NetBox'
       fi
@@ -48,7 +48,7 @@ case "$action" in
     ansible-inventory -i inventory/netbox.yml --list | python3 ../platform/check_inventory.py
     ansible all -i inventory/netbox.yml -m ping
     ansible-playbook -i inventory/netbox.yml cluster.yml
-    python3 ../platform/sync_netbox.py --status ready
+    python3 ../platform/sync_netbox.py --status active
     ;;
   *) echo "Unknown action: $action" >&2; exit 2 ;;
 esac

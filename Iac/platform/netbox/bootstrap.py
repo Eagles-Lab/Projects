@@ -33,9 +33,8 @@ cluster_type, _ = ClusterType.objects.get_or_create(
 Cluster.objects.get_or_create(name="iac-lab", defaults={"type": cluster_type})
 Tag.objects.get_or_create(slug="iac-course", defaults={"name": "IaC Course", "color": "2196f3"})
 for name, label in (("private_ip", "Private IP"),
-                    ("cloud_instance_id", "Cloud instance ID"),
-                    ("lifecycle", "Lifecycle (created / ready / deleted)")):
-    field, _ = CustomField.objects.get_or_create(name=name, defaults={
+                    ("cloud_instance_id", "Cloud instance ID")):
+    field, _ = CustomField.objects.update_or_create(name=name, defaults={
         "label": label, "type": "text",
     })
     field.object_types.add(ObjectType.objects.get_for_model(VirtualMachine))

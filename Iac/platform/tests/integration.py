@@ -39,7 +39,7 @@ try:
     for node in nodes.values():
         if api.find("ipam/ip-addresses/", address=node["public_ip"] + "/32"):
             raise ValueError("测试地址已存在，拒绝占用")
-    sync(nodes, "created", api)
+    sync(nodes, "staged", api)
     data = inventory()
     cp, wk = [node["host_name"] for node in nodes.values()]
     assert cp in data.get("control_plane", {}).get("hosts", []), "控制面分组错误"
@@ -50,12 +50,15 @@ try:
         assert host["private_ip"] == node["private_ip"]
         assert host["node_hostname"] == node["host_name"]
         assert host["node_role"] == node["role"]
-    sync(nodes, "ready", api)
-    sync(nodes, "created", api)  # 相同实例重新登记不能将 ready 降级。
+    sync(nodes, "active", api)
+    sync(nodes, "staged", api)  # 相同实例重新登记不能将 active 降级。
     for node in nodes.values():
         vm = api.find("virtualization/virtual-machines/", name=node["host_name"])
-        assert vm["custom_fields"]["lifecycle"] == "ready"
-    sync(nodes, "deleted", api)
+        assert vm["status"]["value"] == "active"
+    sync(nodes, "offline", api)
+    for node in nodes.values():
+        vm = api.find("virtualization/virtual-machines/", name=node["host_name"])
+        assert vm["status"]["value"] == "offline"
     data = inventory()
     assert not any(node["host_name"] in data.get("_meta", {}).get("hostvars", {}) for node in nodes.values())
     print("集成测试通过：资产登记、分组/变量、状态回写、删除后清单排除；没有申请云资源。")
